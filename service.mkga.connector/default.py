@@ -38,8 +38,10 @@ def main():
     if not name:return
     try:
         result=post(API,{'code':code,'name':name,'platform':platform.system(),'kodiVersion':xbmc.getInfoLabel('System.BuildVersion'),'connectorVersion':addon.getAddonInfo('version')})
-        addon.setSetting('device_id',str(result.get('deviceId','')));addon.setSetting('device_token',str(result.get('deviceToken','')));addon.setSetting('device_name',name)
-        refresh_existing(str(result.get('deviceToken','')))
+        token=str(result.get('deviceToken',''))
+        addon.setSetting('device_id',str(result.get('deviceId','')));addon.setSetting('device_token',token);addon.setSetting('device_name',name)
+        if not token or addon.getSetting('device_token')!=token:raise Exception('Kodi could not persist MKGA pairing settings')
+        refresh_existing(token)
         xbmcgui.Dialog().ok('MKGA Connector','Paired successfully. Inventory refreshed and background service started.')
     except urllib.error.HTTPError as e:
         try: msg=json.loads(e.read().decode()).get('error','Pairing failed')
