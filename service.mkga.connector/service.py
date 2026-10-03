@@ -1,4 +1,4 @@
-import hashlib, json, os, platform, shutil, time, urllib.request, zipfile
+import hashlib, json, os, platform, shutil, time, urllib.parse, urllib.request, zipfile
 import xbmc, xbmcaddon, xbmcgui, xbmcvfs
 
 BASE='https://mkga.tv/api/kodi/agent'
@@ -87,6 +87,92 @@ def download_backup(backup_id):
         except Exception:pass
         raise Exception('Backup checksum verification failed')
     return target
+MAX_BUILD_DOWNLOAD=4*1024*1024*1024
+MAX_BUILD_UNCOMPRESSED=20*1024*1024*1024
+MAX_BUILD_FILES=100000
+
+def validate_build_url(value):
+    value=str(value or '').strip()
+    parsed=urllib.parse.urlparse(value)
+    if parsed.scheme.lower() not in ('http','https') or not parsed.netloc or parsed.username or parsed.password:
+        raise Exception('Build URL must be a normal HTTP or HTTPS URL')
+    return value
+
+def download_build_url(url):
+    url=validate_build_url(url)
+    target=xbmcvfs.translatePath('special://temp/mkga-url-build-%d.zip'%int(time.time()))
+    req=urllib.request.Request(url,headers={'User-Agent':'MKGA-Connector/'+addon.getAddonInfo('version')},method='GET')
+    total=0
+    try:
+        with urllib.request.urlopen(req,timeout=60) as response,open(target,'wb') as out:
+            validate_build_url(response.geturl())
+            declared=int(response.headers.get('Content-Length') or 0)
+            if declared>MAX_BUILD_DOWNLOAD:raise Exception('Kodi build is larger than the 4 GB safety limit')
+            while True:
+                chunk=response.read(1024*1024)
+                if not chunk:break
+                total+=len(chunk)
+                if total>MAX_BUILD_DOWNLOAD:raise Exception('Kodi build is larger than the 4 GB safety limit')
+                out.write(chunk)
+                if monitor.abortRequested():raise Exception('Kodi is shutting down; build install cancelled')
+        if total<22 or not zipfile.is_zipfile(target):raise Exception('The URL did not return a valid Kodi ZIP build')
+        return target,total
+    except Exception:
+        try:os.remove(target)
+        except Exception:pass
+        raise
+
+def build_member_rel(name):
+    rel=str(name or '').replace('\\','/').lstrip('/')
+    parts=[p for p in rel.split('/') if p not in ('','.')]
+    if not parts or '..' in parts:return ''
+    roots={'addons':'addons','userdata':'userdata','media':'media'}
+    for index,part in enumerate(parts):
+        key=part.lower()
+        if key not in roots:continue
+        prefix=parts[:index]
+        if len(prefix)>2:continue
+        if len(prefix)==2 and prefix[-1].lower() not in ('.kodi','kodi'):continue
+        return '/'.join([roots[key],*parts[index+1:]])
+    return ''
+
+def safe_install_url_build(zip_path):
+    home_path=os.path.realpath(xbmcvfs.translatePath('special://home'));restored=0;total=0;selected=[]
+    with zipfile.ZipFile(zip_path,'r') as z:
+        infos=z.infolist()
+        if len(infos)>MAX_BUILD_FILES:raise Exception('Kodi build contains too many files')
+        for member in infos:
+            rel=build_member_rel(member.filename)
+            if not rel or backup_skip(rel):continue
+            mode=(member.external_attr>>16)&0o170000
+            if mode==0o120000:continue
+            total+=max(0,int(member.file_size or 0))
+            if total>MAX_BUILD_UNCOMPRESSED:raise Exception('Kodi build expands beyond the 20 GB safety limit')
+            selected.append((member,rel))
+        if not any(rel.split('/')[0] in ('addons','userdata') for _,rel in selected):raise Exception('ZIP does not contain a supported Kodi build structure')
+        for member,rel in selected:
+            parts=[p for p in rel.split('/') if p]
+            out=os.path.realpath(os.path.join(home_path,*parts))
+            if not (out==home_path or out.startswith(home_path+os.sep)):continue
+            if member.is_dir():os.makedirs(out,exist_ok=True);continue
+            os.makedirs(os.path.dirname(out),exist_ok=True)
+            with z.open(member) as src,open(out,'wb') as dst:shutil.copyfileobj(src,dst,1024*1024)
+            restored+=1
+    xbmc.executebuiltin('UpdateLocalAddons');xbmc.executebuiltin('ReloadSkin()')
+    return restored
+
+def install_build_url(url):
+    url=validate_build_url(url)
+    safety_name='Before URL build · '+time.strftime('%Y-%m-%d %H:%M')
+    safety_ok,_,safety=create_backup(safety_name)
+    if not safety_ok:raise Exception('Safety backup failed; URL build install cancelled')
+    path,size=download_build_url(url)
+    try:count=safe_install_url_build(path)
+    finally:
+        try:os.remove(path)
+        except Exception:pass
+    return True,'Kodi build installed from URL. Restart Kodi to fully apply it.',{'restartRequired':True,'safetyBackupId':safety.get('backupId',''),'restoredFiles':count,'downloadedBytes':size}
+
 def safe_restore(zip_path):
     home_path=os.path.realpath(xbmcvfs.translatePath('special://home'));restored=0
     with zipfile.ZipFile(zip_path,'r') as z:
@@ -150,6 +236,7 @@ def execute(action,payload=None):
     if action=='repair_stremio':
         ok=install_repo() and install_stremio();return ok,'Repository and Stremio for Kodi repaired' if ok else 'Repair failed',{}
     if action=='create_backup':return create_backup(str(payload.get('name') or ('Kodi backup · '+time.strftime('%Y-%m-%d %H:%M'))))
+    if action=='install_build_url':return install_build_url(str(payload.get('url') or ''))
     if action=='restore_backup':
         backup_id=str(payload.get('backupId') or '')
         if not backup_id:return False,'Backup ID is missing',{}
