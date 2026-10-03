@@ -4,7 +4,7 @@ import xbmc, xbmcaddon, xbmcgui, xbmcvfs
 BASE='https://mkga.tv/api/kodi/agent'
 REPO_ZIP='https://raw.githubusercontent.com/0eroiQ/Stremio-for-Kodi/kodi-repository/repository.stremioforkodi/repository.stremioforkodi-1.1.0.zip'
 ADDON_ID='script.stremioelec';REPO_ID='repository.stremioforkodi';CONNECTOR_ID='service.mkga.connector'
-addon=xbmcaddon.Addon(); monitor=xbmc.Monitor(); home=xbmcgui.Window(10000)
+addon=xbmcaddon.Addon(CONNECTOR_ID); monitor=xbmc.Monitor(); home=xbmcgui.Window(10000)
 def request(path,method='GET',data=None):
     token=addon.getSetting('device_token')
     if not token:return None
