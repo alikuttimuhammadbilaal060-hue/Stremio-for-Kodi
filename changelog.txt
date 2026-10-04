@@ -1,3 +1,10 @@
+v1.0.75
+- Make the Settings left navigation and right settings panel visually distinguish selected state from actual D-pad focus.
+- Keep the inactive column selection dim instead of leaving both columns with the same full active highlight.
+- Show the bright purple focus background, accent marker and bright text only when that column actually owns focus.
+- Preserve existing left/right remote navigation behavior.
+- Add regression coverage for both Settings columns.
+
 v1.0.74
 - Refresh local Continue Watching immediately after a confirmed Stremio playback write-back instead of waiting for the 15-minute maintenance pass.
 - Resolve a completed series episode to its already-aired next episode from the metadata already loaded for playback, so the series stays at the front of Continue Watching.

@@ -42,16 +42,28 @@
       <focusedlayout width="390" height="66">
         <control type="image">
           <left>0</left><top>4</top><width>390</width><height>58</height>
+          <texture border="29" colordiffuse="A0242333">special://home/addons/script.stremioelec/resources/branding/rounded.png</texture>
+        </control>
+        <control type="image">
+          <left>0</left><top>4</top><width>390</width><height>58</height>
           <texture border="29" colordiffuse="FF42365C">special://home/addons/script.stremioelec/resources/branding/rounded.png</texture>
+          <visible>Control.HasFocus(100)</visible>
         </control>
         <control type="image">
           <left>0</left><top>13</top><width>5</width><height>40</height>
           <texture colordiffuse="FFC4ACFF">special://home/addons/script.stremioelec/resources/branding/white.png</texture>
+          <visible>Control.HasFocus(100)</visible>
+        </control>
+        <control type="label">
+          <left>24</left><top>0</top><width>340</width><height>66</height>
+          <font>font25</font><textcolor>FFD2D0D8</textcolor><aligny>center</aligny>
+          <label>$INFO[ListItem.Label]</label>
         </control>
         <control type="label">
           <left>24</left><top>0</top><width>340</width><height>66</height>
           <font>font25</font><textcolor>FFFFFFFF</textcolor><aligny>center</aligny>
           <label>$INFO[ListItem.Label]</label>
+          <visible>Control.HasFocus(100)</visible>
         </control>
       </focusedlayout>
     </control>
@@ -88,17 +100,34 @@
       <focusedlayout width="1320" height="78">
         <control type="image">
           <left>0</left><top>5</top><width>1280</width><height>68</height>
+          <texture border="28" colordiffuse="A0242333">special://home/addons/script.stremioelec/resources/branding/rounded.png</texture>
+        </control>
+        <control type="image">
+          <left>0</left><top>5</top><width>1280</width><height>68</height>
           <texture border="28" colordiffuse="FF42365C">special://home/addons/script.stremioelec/resources/branding/rounded.png</texture>
+          <visible>Control.HasFocus(200)</visible>
+        </control>
+        <control type="label">
+          <left>30</left><top>7</top><width>760</width><height>64</height>
+          <font>font25</font><textcolor>FFD2D0D8</textcolor><aligny>center</aligny>
+          <label>$INFO[ListItem.Label]</label>
+        </control>
+        <control type="label">
+          <left>810</left><top>7</top><width>430</width><height>64</height>
+          <font>font20</font><textcolor>FF9A98A6</textcolor><align>right</align><aligny>center</aligny>
+          <label>$INFO[ListItem.Label2]</label>
         </control>
         <control type="label">
           <left>30</left><top>7</top><width>760</width><height>64</height>
           <font>font25</font><textcolor>FFFFFFFF</textcolor><aligny>center</aligny>
           <label>$INFO[ListItem.Label]</label>
+          <visible>Control.HasFocus(200)</visible>
         </control>
         <control type="label">
           <left>810</left><top>7</top><width>430</width><height>64</height>
           <font>font20</font><textcolor>FFC4ACFF</textcolor><align>right</align><aligny>center</aligny>
           <label>$INFO[ListItem.Label2]</label>
+          <visible>Control.HasFocus(200)</visible>
         </control>
       </focusedlayout>
     </control>
