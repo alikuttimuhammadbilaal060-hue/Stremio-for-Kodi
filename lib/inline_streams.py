@@ -2,7 +2,7 @@
 import threading
 import xbmcgui
 from lib import backend as api
-from lib.stream_presenter import presentation, target_label, playback_meta
+from lib.stream_presenter import presentation, target_label, playback_meta, filter_rows
 
 LIST, CLOSE, RETRY = 7100, 7101, 7103
 BACK = (10, 92, 216, 247)
@@ -21,6 +21,9 @@ class InlineStreams:
         self._streams_positions = {}
         self._streams_launching = False
         self._streams_prefetch_identity = None
+        self._streams_provider_filter = 'All'
+        self._streams_codec_filter = 'All'
+        self._streams_dynamic_filter = 'All'
 
     def prefetch_streams(self, identity):
         """Media Info trigger: show cached data later, refresh this title once in background."""
@@ -120,7 +123,7 @@ class InlineStreams:
         self.setFocusId(LIST)
 
     def _render_streams(self, restore=False):
-        self._streams_visible = list(self._streams_rows)
+        self._streams_visible = filter_rows(self._streams_rows, self._streams_provider_filter, self._streams_codec_filter, self._streams_dynamic_filter)
         control = self.getControl(LIST)
         control.reset()
         for row in self._streams_visible:
@@ -134,6 +137,13 @@ class InlineStreams:
         self.setProperty('streams_count', '{} sources'.format(len(self._streams_visible)))
         self.setProperty('streams_ready', 'true' if self._streams_visible else '')
         self.setProperty('streams_message', '' if self._streams_visible else 'No playable sources were returned.')
+
+    def set_stream_filters(self, provider='All', codec='All', dynamic='All'):
+        self._streams_provider_filter = provider or 'All'
+        self._streams_codec_filter = codec or 'All'
+        self._streams_dynamic_filter = dynamic or 'All'
+        if self._streams_open:
+            self._render_streams()
 
     def _remember_stream_position(self):
         if self._streams_visible:
