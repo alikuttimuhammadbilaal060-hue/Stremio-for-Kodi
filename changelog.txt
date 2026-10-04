@@ -1,3 +1,9 @@
+v1.0.76
+- Make Home infinite catalog pagination independent of WindowXML D-pad callbacks on Fire TV and other Kodi devices.
+- Poll the active Home row selection while Home is visible and trigger the existing lazy loader when focus reaches the final four cards.
+- Keep the existing 16-item lightweight page size, provider skip cursor, duplicate filtering and background loading behavior unchanged.
+- Add regression coverage proving pagination is checked from the Home watcher as well as normal remote navigation.
+
 v1.0.75
 - Make the Settings left navigation and right settings panel visually distinguish selected state from actual D-pad focus.
 - Keep the inactive column selection dim instead of leaving both columns with the same full active highlight.

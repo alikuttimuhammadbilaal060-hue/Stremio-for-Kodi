@@ -384,12 +384,14 @@ class HomeWindow(AddonsPage, NimbusWindow):
         def watch():
             while not self.closed:
                 revision, _, _ = snapshot()
-                if revision and revision != self._progress_revision:
-                    # Keep the revision pending while an Info window is above Home.
-                    # Once it closes, patch Home from the newly written local state.
-                    if not self.preview_suspended:
+                if not self.preview_suspended and self.getProperty('page') == 'Home':
+                    if revision and revision != self._progress_revision:
                         self._progress_revision = revision
                         self.refresh_home_local()
+                    # Some Kodi/Fire OS fixedlists consume horizontal D-pad actions
+                    # without forwarding every move to WindowXML.onAction. Poll the
+                    # selected position so lazy pagination remains device-independent.
+                    self.maybe_load_more_home()
                 xbmc.sleep(250)
         try:
             self._progress_worker = threading.Thread(target=watch, daemon=True)
