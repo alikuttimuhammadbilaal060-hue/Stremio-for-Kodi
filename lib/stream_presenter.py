@@ -36,6 +36,33 @@ def presentation(row):
     return {'title': title or provider, 'detail': detail or provider, 'quality': quality}
 
 
+def stream_traits(row):
+    view = presentation(row)
+    text = ' '.join((view.get('title',''), view.get('detail',''))).upper()
+    provider = line((row.get('card') or {}).get('provider') or row.get('provider') or 'Stream',70)
+    codecs=[]
+    if 'H.265' in text or 'HEVC' in text: codecs.append('HEVC / H.265')
+    if 'H.264' in text or 'AVC' in text: codecs.append('H.264 / AVC')
+    if 'AV1' in text: codecs.append('AV1')
+    dynamic=[]
+    if 'DOLBY VISION' in text or re.search(r'\bDV\b',text): dynamic.append('Dolby Vision')
+    if 'HDR10' in text: dynamic.append('HDR10')
+    elif re.search(r'\bHDR\b',text): dynamic.append('HDR')
+    return {'provider':provider,'codecs':codecs,'dynamic':dynamic,'quality':view.get('quality','AUTO')}
+
+def provider_choices(rows):
+    return ['All'] + sorted({stream_traits(row)['provider'] for row in rows if stream_traits(row)['provider']})
+
+def filter_rows(rows, provider='All', codec='All', dynamic='All'):
+    out=[]
+    for row in rows:
+        t=stream_traits(row)
+        if provider!='All' and t['provider']!=provider: continue
+        if codec!='All' and codec not in t['codecs']: continue
+        if dynamic!='All' and dynamic not in t['dynamic']: continue
+        out.append(row)
+    return out
+
 def quality_choices(rows):
     values = {presentation(row)['quality'] for row in rows}
     order = ('4K', '1080p', '720p', '480p', '360p', 'AUTO')
