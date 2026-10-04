@@ -41,6 +41,21 @@ def record(profile, stage, elapsed=None, **counts):
     _store(profile).save(state)
 
 
+def record_stream_providers(profile, rows):
+    """Persist only provider display name + duration/status/count; never URLs."""
+    safe = []
+    for row in list(rows or [])[:40]:
+        safe.append({
+            'provider': str(row.get('provider') or 'Addon')[:80],
+            'ms': max(0, min(MAX_MS, int(row.get('ms') or 0))),
+            'failed': bool(row.get('failed')),
+            'rows': max(0, min(MAX_COUNT, int(row.get('rows') or 0))),
+        })
+    state = _store(profile).load()
+    state['streamProviders'] = safe
+    _store(profile).save(state)
+
+
 def load(profile):
     state = _store(profile).load()
     timings = state.get('timings')
@@ -83,6 +98,9 @@ def build_payload(profile, environment=None):
         'stack': [],
         'performance': timings,
     }
+    provider_rows = _store(profile).load().get('streamProviders')
+    if isinstance(provider_rows, list) and provider_rows:
+        report['streamProviders'] = provider_rows[:40]
     validation = load_validation(profile)
     if validation:
         report['validation'] = validation
