@@ -267,13 +267,7 @@ class NimbusWindow(xbmcgui.WindowXML):
             unmark_window(window)
             self.preview_suspended = False
             if hasattr(self, 'account_rows') and self.getProperty('page') == 'Home':
-                try:
-                    fresh = api.account_home(False)
-                    if fresh != self.account_rows:
-                        self.account_rows = fresh
-                        self.load_home()
-                except Exception:
-                    pass
+                self.refresh_home_local()
 
 
 from lib.addons_page import AddonsPage
@@ -300,6 +294,8 @@ class HomeWindow(AddonsPage, NimbusWindow):
         self.home_row_loading = set()
         self.home_row_exhausted = set()
         self.home_row_cursor = {}
+        self._progress_revision = ''
+        self._progress_worker = None
         super().__init__(*args, **kwargs)
 
     def onInit(self):
@@ -313,6 +309,7 @@ class HomeWindow(AddonsPage, NimbusWindow):
         self.getControl(9000).addItems(menu_items(xbmcgui))
         self.getControl(9000).selectItem(home_index())
         self.load_home()
+        self._start_progress_watch()
         perf_profile = None
         try:
             perf_profile = api.STORE.directory
@@ -356,6 +353,49 @@ class HomeWindow(AddonsPage, NimbusWindow):
             changed+=1
         self.account_rows=fresh
         return changed
+
+    def refresh_home_local(self):
+        """Patch Home from local account/CW state only; never perform network I/O."""
+        if self.closed or self.getProperty('page') != 'Home' or self.preview_suspended:
+            return False
+        try:
+            fresh = api.account_home(False)
+            focus = self.getFocusId()
+            position = self.getControl(focus).getSelectedPosition() if focus in self.rows else None
+            patched = self.patch_home_rows(fresh)
+            if patched is False:
+                self.account_rows = fresh
+                self.populate_rows('Home', fresh)
+            if focus == 9000:
+                self.setFocusId(9000)
+            elif focus in self.rows and self.rows[focus]:
+                if position is not None:
+                    self.getControl(focus).selectItem(min(max(0, position), len(self.rows[focus]) - 1))
+                self.setFocusId(focus)
+            return True
+        except Exception:
+            return False
+
+    def _start_progress_watch(self):
+        from lib.progress_signal import snapshot
+        self._progress_revision = snapshot()[0]
+        if self._progress_worker is not None and self._progress_worker.is_alive():
+            return
+        def watch():
+            while not self.closed:
+                revision, _, _ = snapshot()
+                if revision and revision != self._progress_revision:
+                    # Keep the revision pending while an Info window is above Home.
+                    # Once it closes, patch Home from the newly written local state.
+                    if not self.preview_suspended:
+                        self._progress_revision = revision
+                        self.refresh_home_local()
+                xbmc.sleep(250)
+        try:
+            self._progress_worker = threading.Thread(target=watch, daemon=True)
+            self._progress_worker.start()
+        except RuntimeError:
+            self._progress_worker = None
 
     def refresh_home_async(self):
         if self.home_refreshing or self.closed:
@@ -818,6 +858,9 @@ class InfoWindow(InlineStreams, NimbusWindow):
         self.cards = []
         self.play_target = ''
         self.resume_ms = 0
+        self.closed = False
+        self._progress_revision = ''
+        self._progress_worker = None
         self.init_streams()
 
     def onInit(self):
@@ -865,6 +908,7 @@ class InfoWindow(InlineStreams, NimbusWindow):
             if pos is not None:
                 self.getControl(501).selectItem(pos)
         self.setFocusId(501 if series and self.cards else 21001)
+        self._start_progress_watch()
         if self.auto_source:
             identity, resume = self.auto_source
             self.choose_source(identity, resume_ms=resume)
@@ -885,9 +929,40 @@ class InfoWindow(InlineStreams, NimbusWindow):
             self.trailer_timer.start()
 
     def close(self):
+        self.closed = True
         self.stop_streams()
         self.cancel_trailer()
         super().close()
+
+    def _start_progress_watch(self):
+        from lib.progress_signal import snapshot
+        self._progress_revision = snapshot()[0]
+        if self._progress_worker is not None and self._progress_worker.is_alive():
+            return
+        def watch():
+            while not self.closed:
+                revision, meta_id, _ = snapshot()
+                if revision and revision != self._progress_revision:
+                    current_meta = str(self.meta.get('id') or '')
+                    if meta_id != current_meta:
+                        self._progress_revision = revision
+                    elif not xbmc.Player().isPlayingVideo():
+                        # Do not consume our revision until Kodi has actually
+                        # returned from the player; the next 250ms pass retries.
+                        self._progress_revision = revision
+                        if self.section == 'Episodes' and self.cards:
+                            pos = self.getControl(501).getSelectedPosition()
+                            keep_focus = self.getFocusId() == 501
+                            self._refresh_episode_cards(pos, focus_episode=keep_focus)
+                        else:
+                            self._resume_marker = None
+                            self.refresh_resume_state()
+                xbmc.sleep(250)
+        try:
+            self._progress_worker = threading.Thread(target=watch, daemon=True)
+            self._progress_worker.start()
+        except RuntimeError:
+            self._progress_worker = None
 
     def play_trailer(self):
         self.cancel_trailer()
@@ -1008,7 +1083,7 @@ class InfoWindow(InlineStreams, NimbusWindow):
         if current in self.menu_entries:
             listing.selectItem(self.menu_entries.index(current))
 
-    def _refresh_episode_cards(self, pos):
+    def _refresh_episode_cards(self, pos, focus_episode=True):
         saved = api.saved(self.meta)
         from lib.episode_state import watched_ids
         self.watched_episodes = watched_ids(self.meta.get('videos', []), saved)
@@ -1016,7 +1091,8 @@ class InfoWindow(InlineStreams, NimbusWindow):
         self.refresh_resume_state()
         self.select_section('Episodes')
         self.getControl(501).selectItem(min(pos, max(0, len(self.cards) - 1)))
-        self.setFocusId(501)
+        if focus_episode:
+            self.setFocusId(501)
 
     def episode_context_menu(self):
         if self.section != 'Episodes' or self.getFocusId() != 501:
@@ -1079,7 +1155,6 @@ class InfoWindow(InlineStreams, NimbusWindow):
                 self.meta.get('videos', []), self.meta['id'], saved)
             if next_video:
                 self.play_target = next_video['id']
-                self.season = int(next_video.get('season', self.season))
         else:
             self.resume_ms = state.get('timeOffset') or 0
         self.setProperty('playlabel', 'Resume' if api.resume_seconds(self.resume_ms) else 'Play')

@@ -1,3 +1,10 @@
+v1.0.74
+- Refresh local Continue Watching immediately after a confirmed Stremio playback write-back instead of waiting for the 15-minute maintenance pass.
+- Resolve a completed series episode to its already-aired next episode from the metadata already loaded for playback, so the series stays at the front of Continue Watching.
+- Notify open Home and media-info windows after confirmed playback sync and patch their local UI state without another account network pull.
+- Refresh episode watched badges/resume state immediately after Stop/End while preserving the currently viewed season and episode-list position.
+- Add regression coverage for partial progress, completed-series next-episode pointers, local progress signaling and Home/Info refresh wiring.
+
 v1.0.73
 - Give full-episode BYOK subtitle translations time to finish instead of abandoning each request after 15 seconds.
 - Scale the request timeout by subtitle cue count and text size, up to 90 seconds per request.
