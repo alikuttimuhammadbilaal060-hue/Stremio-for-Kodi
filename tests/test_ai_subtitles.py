@@ -456,3 +456,50 @@ class GeminiFallbackTests(unittest.TestCase):
                 return Response({'candidates':[{'content':{'parts':[{'text':inner}]}}]})
         self.assertEqual(module._request_translation(cues,'key','bs','en',Opener())['1'],'Zdravo')
         self.assertEqual(len(calls),2);self.assertEqual(calls[0][1],15)
+
+class EmbeddedTranslationFallbackBehaviorTests(unittest.TestCase):
+    def test_provider_failure_returns_original_embedded_subtitle(self):
+        module = load_module()
+        settings = {
+            'enabled': True, 'auto_translate': True, 'provider': '0',
+            'api_key': 'test-key', 'target': 'bs'
+        }
+        failure = module.AITranslationError('temporary provider failure')
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'original.en.srt'
+            source.write_text(SRT, encoding='utf-8')
+            with patch.object(module, 'local_settings', return_value=settings), \
+                    patch.object(module, 'extract_best_embedded',
+                                 return_value=(str(source), 'en', {'index': 2})), \
+                    patch.object(module, 'translate_subtitle_file', side_effect=failure):
+                result = module.prepare_embedded_auto(
+                    'https://example.test/video.mkv', Path(directory))
+        self.assertEqual(result['path'], str(source))
+        self.assertEqual(result['source_language'], 'en')
+        self.assertEqual(result['target_language'], 'en')
+        self.assertEqual(result['requested_target_language'], 'bs')
+        self.assertFalse(result['translated'])
+        self.assertIs(result['translation_error'], failure)
+
+    def test_successful_embedded_translation_uses_requested_target(self):
+        module = load_module()
+        settings = {
+            'enabled': True, 'auto_translate': True, 'provider': '0',
+            'api_key': 'test-key', 'target': 'bs'
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'original.en.srt'
+            translated = Path(directory) / 'translated.bs.srt'
+            source.write_text(SRT, encoding='utf-8')
+            translated.write_text(SRT.replace('Hello.', 'Zdravo.'), encoding='utf-8')
+            with patch.object(module, 'local_settings', return_value=settings), \
+                    patch.object(module, 'extract_best_embedded',
+                                 return_value=(str(source), 'en', {'index': 2})), \
+                    patch.object(module, 'translate_subtitle_file',
+                                 return_value=str(translated)):
+                result = module.prepare_embedded_auto(
+                    'https://example.test/video.mkv', Path(directory))
+        self.assertEqual(result['path'], str(translated))
+        self.assertEqual(result['target_language'], 'bs')
+        self.assertTrue(result['translated'])
+        self.assertIsNone(result['translation_error'])
