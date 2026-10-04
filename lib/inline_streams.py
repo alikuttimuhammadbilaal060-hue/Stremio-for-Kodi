@@ -1,6 +1,7 @@
 """Addon-owned hero stream panel; Back restores the original cards and focus."""
 import threading
 import xbmcgui
+from lib.ui_dialogs import dialog as themed_dialog
 from lib import backend as api
 from lib.stream_presenter import presentation, target_label, playback_meta, filter_rows, provider_choices
 
@@ -151,7 +152,7 @@ class InlineStreams:
             values=['All','HEVC / H.265','H.264 / AVC','AV1']; current=self._streams_codec_filter; heading='Video codec'
         else:
             values=['All','Dolby Vision','HDR10','HDR']; current=self._streams_dynamic_filter; heading='Dynamic range'
-        selected=xbmcgui.Dialog().select(heading,values,preselect=(values.index(current) if current in values else 0))
+        selected=themed_dialog().select(heading,values,preselect=(values.index(current) if current in values else 0))
         if selected<0:return
         if kind=='provider': self._streams_provider_filter=values[selected]
         elif kind=='codec': self._streams_codec_filter=values[selected]
