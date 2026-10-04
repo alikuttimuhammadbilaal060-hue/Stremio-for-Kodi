@@ -129,7 +129,13 @@ def cached_source_rows(meta, identity):
 def source_rows(meta, identity):
     from lib.stream_index import put
     active = providers()
-    rows, skipped, failed = collect(active, meta['type'], identity)
+    timing = []
+    rows, skipped, failed = collect(active, meta['type'], identity, timing=timing)
+    try:
+        from lib.perf_report import record_stream_providers
+        record_stream_providers(STORE.directory, timing)
+    except Exception:
+        pass
     for row in rows:
         row['card'] = stream_card(row)
     result=(rows,skipped,failed)
