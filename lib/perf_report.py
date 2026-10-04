@@ -12,8 +12,10 @@ from lib.error_report import _environment, send_report
 
 STAGES = (
     'home.cached', 'home.cached.total', 'ui.home.initial',
-    'home.refresh.account', 'home.refresh.catalogs', 'home.refresh.library',
-    'ui.home.repopulate', 'ui.home.background.total', 'home.refresh.total',
+    'home.refresh.account.local', 'home.refresh.catalogs', 'home.refresh.library.local',
+    'ui.home.full', 'ui.home.incremental', 'ui.home.background.total', 'home.refresh.total',
+    'benchmark.cached_home', 'benchmark.snapshot_load', 'benchmark.continue_index',
+    'benchmark.account_load', 'benchmark.stream_cache',
 )
 MAX_MS = 30 * 60 * 1000
 MAX_COUNT = 10000
@@ -52,6 +54,9 @@ def build_payload(profile, environment=None):
     if not timings:
         return None
     env = dict(environment or _environment())
+    if not env.get('hardwareClass'):
+        from lib.hardware_class import current
+        env['hardwareClass'] = current(env.get('platform'))
     report = {
         'reportVersion': 1,
         'context': 'Home performance',
@@ -60,6 +65,7 @@ def build_payload(profile, environment=None):
         'kodiVersion': str(env.get('kodiVersion') or 'unknown')[:80],
         'platform': str(env.get('platform') or 'unknown')[:40],
         'pythonVersion': str(env.get('pythonVersion') or 'unknown')[:40],
+        'hardwareClass': str(env.get('hardwareClass') or 'Other')[:40],
         'stack': [],
         'performance': timings,
     }

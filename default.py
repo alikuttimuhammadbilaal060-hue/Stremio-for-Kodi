@@ -30,6 +30,30 @@ def main():
     elif 'locale' in sys.argv[1:]:
         from lib.settings import locale_menu
         locale_menu()
+    elif 'run_low_power_benchmark' in sys.argv[1:]:
+        import xbmcvfs
+        from pathlib import Path
+        from addon_state import get_addon
+        from lib.low_power_benchmark import run
+        from lib.ui_dialogs import dialog
+        addon = get_addon()
+        profile = Path(xbmcvfs.translatePath(addon.getAddonInfo('profile')))
+        result = run(profile)
+        labels = {
+            'benchmark.cached_home': 'Cached Home',
+            'benchmark.snapshot_load': 'Snapshot read',
+            'benchmark.continue_index': 'Continue Watching SQLite',
+            'benchmark.account_load': 'Account state read',
+            'benchmark.stream_cache': 'Stream cache SQLite',
+        }
+        lines = []
+        for stage, elapsed in result['metrics'].items():
+            mark = 'PASS' if result['checks'][stage] else 'REVIEW'
+            lines.append('{}: {} ms / {} ms - {}'.format(
+                labels[stage], elapsed, result['targets'][stage], mark))
+        lines += ['', 'Local engineering budget only; a real Pi 3 run is required for certification.',
+                  'Use Send performance report next to share the reviewed timing sample.']
+        dialog().ok('Low-power benchmark', '\n'.join(lines))
     elif 'send_performance_report' in sys.argv[1:]:
         import xbmcvfs
         from pathlib import Path

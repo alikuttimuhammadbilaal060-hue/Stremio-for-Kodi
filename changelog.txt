@@ -1,3 +1,10 @@
+v1.0.79
+- Add Settings → Support → Run low-power benchmark for Raspberry Pi-class hardware.
+- Measure five-sample medians for cached Home, Home snapshot reads, Continue Watching SQLite, local account-state reads and stream-cache SQLite without making network requests.
+- Store benchmark timings plus a coarse hardware class (for example Raspberry Pi 3) in the existing reviewed privacy-safe performance report; never send the raw model or device ID.
+- Document a repeatable Raspberry Pi 3 couch/navigation pass and the low-power rules that must remain true.
+- Keep GitHub issue #47 open until an actual Raspberry Pi 3 result is reviewed.
+
 v1.0.78
 - Preserve provider-supplied rich Cast/Crew person metadata, including profile photos and character/job labels, while keeping initials fallback for name-only providers such as Cinemeta.
 - Show stream Audio and Language information explicitly alongside quality, video format, size and provider.

@@ -142,6 +142,14 @@ class PerformanceTraceWiringTests(unittest.TestCase):
         self.assertIn("perf_log('ui.home.initial'",nimbus)
         self.assertIn("ui.home.",nimbus)
 
+
+    def test_performance_allowlist_tracks_current_home_stage_names(self):
+        from lib.perf_report import STAGES
+        for stage in ('home.refresh.account.local','home.refresh.library.local','ui.home.incremental','ui.home.full'):
+            self.assertIn(stage, STAGES)
+        for stale in ('home.refresh.account','home.refresh.library','ui.home.repopulate'):
+            self.assertNotIn(stale, STAGES)
+
     def test_perf_trace_never_accepts_freeform_values(self):
         text=(ROOT/'lib/perf_trace.py').read_text()
         self.assertNotIn('**fields',text)
