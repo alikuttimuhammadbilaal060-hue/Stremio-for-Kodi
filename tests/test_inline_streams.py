@@ -7,7 +7,7 @@ import types
 import unittest
 from unittest.mock import Mock, patch
 import xml.etree.ElementTree as ET
-from lib.stream_presenter import line, presentation, playback_meta
+from lib.stream_presenter import line, presentation, playback_meta, stream_traits, provider_choices, filter_rows
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -67,6 +67,31 @@ class InlineTests(unittest.TestCase):
         self.assertIn('Audio: TrueHD 7.1 / Atmos',view['detail'])
         self.assertIn('Lang: GB',view['detail']);self.assertIn('9 GB',view['detail']);self.assertIn('film.mkv',view['detail'])
         self.assertNotIn('🇬🇧',view['detail'])
+
+
+    def test_source_filter_helpers(self):
+        rows=[
+            {'provider':'Torrentio','label':'Torrentio · 4K HEVC Dolby Vision HDR10 9 GB'},
+            {'provider':'MediaFusion','label':'MediaFusion · 1080p H.264 2 GB'},
+            {'provider':'Orion','label':'Orion · 4K AV1 HDR 5 GB'},
+        ]
+        self.assertEqual(provider_choices(rows),['All','MediaFusion','Orion','Torrentio'])
+        self.assertEqual(len(filter_rows(rows,codec='HEVC / H.265')),1)
+        self.assertEqual(len(filter_rows(rows,codec='H.264 / AVC')),1)
+        self.assertEqual(len(filter_rows(rows,codec='AV1')),1)
+        self.assertEqual(len(filter_rows(rows,dynamic='Dolby Vision')),1)
+        self.assertEqual(len(filter_rows(rows,dynamic='HDR10')),1)
+        self.assertEqual(len(filter_rows(rows,dynamic='HDR')),1)
+        self.assertEqual(stream_traits(rows[0])['provider'],'Torrentio')
+
+    def test_stream_panel_has_remote_filter_controls(self):
+        tree=ET.parse(ROOT/'resources/skins/Main/1080i/script-stremio-info.xml')
+        panel=tree.find('.//control[@id="7000"]')
+        for cid in ('7104','7105','7106'):
+            self.assertIsNotNone(panel.find('.//control[@id="'+cid+'"]'))
+        self.assertIn('streams_provider_filter',panel.find('.//control[@id="7104"]/label').text)
+        self.assertIn('streams_codec_filter',panel.find('.//control[@id="7105"]/label').text)
+        self.assertIn('streams_hdr_filter',panel.find('.//control[@id="7106"]/label').text)
 
     def test_sidebar_focus_does_not_change_label_size(self):
         tree=ET.parse(ROOT/'resources/skins/Main/1080i/script-stremio-nimbus.xml')
