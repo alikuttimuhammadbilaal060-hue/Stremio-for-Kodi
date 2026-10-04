@@ -97,3 +97,29 @@ def run(profile, account_home=None, snapshot_load=None, continue_rows=None, acco
         'passed': all(checks.values()),
         'samples': SAMPLES,
     }
+
+COUCH_CHECKS = (
+    'Home and row navigation stayed responsive for at least 60 seconds.',
+    'Infinite Home pagination loaded the next page without freezing.',
+    'Details to Streams worked uncached and again from SQLite cache.',
+    'Playback return refreshed Continue Watching and watched state promptly.',
+    'Back/Exit worked with no focus trap.',
+)
+
+def confirm_couch_pass(profile, result, dialog, hardware_class=None):
+    """Persist explicit Pi 3 couch validation for the next reviewed report."""
+    from lib.perf_report import set_couch_pass
+    set_couch_pass(profile, False)
+    if not bool((result or {}).get('passed')):
+        return False
+    if hardware_class is None:
+        from lib.hardware_class import current
+        hardware_class = current()
+    if hardware_class != 'Raspberry Pi 3':
+        return False
+    message = ('All five local benchmark targets passed.\n\n' +
+               '\n'.join('• ' + item for item in COUCH_CHECKS) +
+               '\n\nDid all of these couch checks also pass on this Raspberry Pi 3?')
+    confirmed = bool(dialog.yesno('Raspberry Pi 3 validation', message, nolabel='Not yet', yeslabel='All passed'))
+    set_couch_pass(profile, confirmed)
+    return confirmed

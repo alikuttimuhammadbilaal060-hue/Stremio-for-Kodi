@@ -86,3 +86,35 @@ class HardwareClassTests(unittest.TestCase):
     def test_android_is_broad_only(self):
         self.assertEqual(classify('', 'Android'),'Android TV')
 
+class Pi3CouchValidationTests(unittest.TestCase):
+    def test_pi3_couch_pass_is_saved_only_after_benchmark_passes_and_user_confirms(self):
+        from lib.low_power_benchmark import confirm_couch_pass
+        from lib.perf_report import load_validation
+        class Dialog:
+            def yesno(self,*args,**kwargs): return True
+        with tempfile.TemporaryDirectory() as directory:
+            profile=Path(directory)
+            self.assertTrue(confirm_couch_pass(profile,{'passed':True},Dialog(),'Raspberry Pi 3'))
+            self.assertEqual(load_validation(profile),{'couchPass':True})
+
+    def test_failed_or_non_pi3_benchmark_never_saves_positive_couch_pass(self):
+        from lib.low_power_benchmark import confirm_couch_pass
+        from lib.perf_report import load_validation
+        class Dialog:
+            def yesno(self,*args,**kwargs): raise AssertionError('must not prompt')
+        with tempfile.TemporaryDirectory() as directory:
+            profile=Path(directory)
+            self.assertFalse(confirm_couch_pass(profile,{'passed':False},Dialog(),'Raspberry Pi 3'))
+            self.assertEqual(load_validation(profile),{'couchPass':False})
+            self.assertFalse(confirm_couch_pass(profile,{'passed':True},Dialog(),'Generic Linux'))
+            self.assertEqual(load_validation(profile),{'couchPass':False})
+
+    def test_performance_payload_contains_only_boolean_couch_validation(self):
+        from lib.perf_report import record,set_couch_pass,build_payload
+        with tempfile.TemporaryDirectory() as directory:
+            profile=Path(directory)
+            record(profile,'benchmark.cached_home',100,rows=1,items=1)
+            set_couch_pass(profile,True)
+            payload=build_payload(profile,{'addonVersion':'1.0.80','kodiVersion':'21','platform':'Linux','pythonVersion':'3.11','hardwareClass':'Raspberry Pi 3'})
+            self.assertEqual(payload['validation'],{'couchPass':True})
+

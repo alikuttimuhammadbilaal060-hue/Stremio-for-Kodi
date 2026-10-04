@@ -1,3 +1,10 @@
+v1.0.80
+- After a passing Raspberry Pi 3 low-power benchmark, ask the tester to explicitly confirm the remote-only couch test.
+- Store only a local boolean couch-pass flag and include it in the reviewed performance report; no raw model, device ID or extra hardware identifiers are added.
+- Reset couch validation whenever the benchmark does not pass or the hardware is not classified as Raspberry Pi 3.
+- MKGA independently re-checks every benchmark target and requires owner review before GitHub issue #47 can close.
+- Add regression coverage for the validation payload and confirmation rules.
+
 v1.0.79
 - Add Settings → Support → Run low-power benchmark for Raspberry Pi-class hardware.
 - Measure five-sample medians for cached Home, Home snapshot reads, Continue Watching SQLite, local account-state reads and stream-cache SQLite without making network requests.

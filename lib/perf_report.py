@@ -37,7 +37,8 @@ def record(profile, stage, elapsed=None, **counts):
     state = _store(profile).load()
     timings = state.get('timings') if isinstance(state.get('timings'), dict) else {}
     timings[stage] = row
-    _store(profile).save({'timings': timings})
+    state['timings'] = timings
+    _store(profile).save(state)
 
 
 def load(profile):
@@ -48,6 +49,19 @@ def load(profile):
     return {stage: dict(timings[stage]) for stage in STAGES
             if stage in timings and isinstance(timings[stage], dict)}
 
+
+
+def set_couch_pass(profile, value):
+    state = _store(profile).load()
+    timings = state.get('timings') if isinstance(state.get('timings'), dict) else {}
+    state = {'timings': timings, 'validation': {'couchPass': bool(value)}}
+    _store(profile).save(state)
+
+
+def load_validation(profile):
+    state = _store(profile).load()
+    value = state.get('validation')
+    return {'couchPass': bool(value.get('couchPass'))} if isinstance(value, dict) else {}
 
 def build_payload(profile, environment=None):
     timings = load(profile)
@@ -69,6 +83,9 @@ def build_payload(profile, environment=None):
         'stack': [],
         'performance': timings,
     }
+    validation = load_validation(profile)
+    if validation:
+        report['validation'] = validation
     identity = dict(report)
     identity['performance'] = {k: sorted(v) for k, v in timings.items()}
     report['fingerprint'] = hashlib.sha256(

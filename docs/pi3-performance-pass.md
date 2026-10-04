@@ -20,7 +20,7 @@ Open **Settings → Support → Run low-power benchmark**. The benchmark perform
 
 These are provisional engineering budgets, not a substitute for a real Pi 3 test.
 
-Then choose **Settings → Support → Send performance report**. Review the privacy-safe payload before sending. It contains timing/count data, broad software/platform versions and a broad hardware class only; it does not read kodi.log, titles, URLs, tokens, API keys, account data or device IDs.
+If all five targets pass on a Raspberry Pi 3, confirm the on-screen couch-test checklist. Then choose **Settings → Support → Send performance report**. Review the privacy-safe payload before sending. It contains timing/count data, broad software/platform versions and a broad hardware class only; it does not read kodi.log, titles, URLs, tokens, API keys, account data or device IDs.
 
 ## Couch test
 
@@ -42,4 +42,4 @@ Using only the TV remote, verify:
 - Stream prefetch is bounded and does not run during playback.
 - AI/network-heavy work must not block ordinary Home/Details navigation.
 
-Record the benchmark report and any visible navigation regression on issue #47. Close #47 only after a real Pi 3 pass has evidence for these checks.
+Record the benchmark report and any visible navigation regression on issue #47. A valid report becomes review evidence in MKGA Lab. Close #47 only after the owner reviews that real Pi 3 benchmark + couch-test evidence.

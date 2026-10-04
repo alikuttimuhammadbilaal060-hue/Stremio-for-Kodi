@@ -34,7 +34,7 @@ def main():
         import xbmcvfs
         from pathlib import Path
         from addon_state import get_addon
-        from lib.low_power_benchmark import run
+        from lib.low_power_benchmark import run, confirm_couch_pass
         from lib.ui_dialogs import dialog
         addon = get_addon()
         profile = Path(xbmcvfs.translatePath(addon.getAddonInfo('profile')))
@@ -53,7 +53,10 @@ def main():
                 labels[stage], elapsed, result['targets'][stage], mark))
         lines += ['', 'Local engineering budget only; a real Pi 3 run is required for certification.',
                   'Use Send performance report next to share the reviewed timing sample.']
-        dialog().ok('Low-power benchmark', '\n'.join(lines))
+        ui = dialog()
+        ui.ok('Low-power benchmark', '\n'.join(lines))
+        if confirm_couch_pass(profile, result, ui):
+            ui.notification('Pi 3 validation', 'Couch test saved. Use Send performance report to submit the evidence.')
     elif 'send_performance_report' in sys.argv[1:]:
         import xbmcvfs
         from pathlib import Path

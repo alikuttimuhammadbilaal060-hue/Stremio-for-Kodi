@@ -398,7 +398,7 @@ def run_action(action, owner=None):
         owner.open_last_error_custom()
     elif action == "run_low_power_benchmark":
         try:
-            from lib.low_power_benchmark import run
+            from lib.low_power_benchmark import run, confirm_couch_pass
             result = run(PROFILE)
             lines = []
             labels = {
@@ -415,7 +415,10 @@ def run_action(action, owner=None):
             lines.append('')
             lines.append('This is a local engineering budget, not a Pi 3 certification by itself.')
             lines.append('Use Send performance report next so the real hardware result reaches MKGA Lab.')
-            themed_dialog().ok('Low-power benchmark', '\n'.join(lines))
+            ui = themed_dialog()
+            ui.ok('Low-power benchmark', '\n'.join(lines))
+            if confirm_couch_pass(PROFILE, result, ui):
+                ui.notification('Pi 3 validation', 'Couch test saved. Use Send performance report to submit the evidence.')
         except Exception:
             themed_dialog().notification('Low-power benchmark', 'Benchmark could not be completed.')
     elif action == "send_performance_report":
