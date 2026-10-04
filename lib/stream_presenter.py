@@ -16,17 +16,24 @@ def presentation(row):
     card = raw if isinstance(raw, dict) else stream_card(row)
     quality = line(card.get('quality') or 'AUTO', 24)
     provider = line(card.get('provider') or row.get('provider') or 'Stream', 70)
-    tech = line(card.get('tech'))
-    parts = [quality]
-    parts.extend(p for p in tech.split(' • ') if p in
-                 ('AV1', 'H.265', 'H.264', 'Dolby Vision', 'HDR10', 'HDR'))
+    tech_parts = [line(part, 40) for part in line(card.get('tech')).split(' • ') if line(part, 40)]
+    video_names = {'REMUX','BluRay','WEB-DL','WEBRip','AV1','H.265','H.264','Dolby Vision','HDR10','HDR','10bit'}
+    video = [part for part in tech_parts if part in video_names]
+    audio = [part for part in tech_parts if part not in video_names]
+    title = line(' · '.join(dict.fromkeys([quality] + video + ([provider] if provider else []))), 180)
+    detail_parts = []
+    if audio:
+        detail_parts.append('Audio: ' + ' / '.join(dict.fromkeys(audio)))
+    languages = line(card.get('languages'), 80)
+    if languages:
+        detail_parts.append('Lang: ' + languages)
     if card.get('size'):
-        parts.append(line(card['size'], 24))
-    if provider:
-        parts.append(provider)
-    title = ' · '.join(dict.fromkeys(parts))
-    detail = line(card.get('filename') or row.get('filename') or row.get('detail') or row.get('label'))
-    return {'title': title, 'detail': detail or provider, 'quality': quality}
+        detail_parts.append(line(card['size'], 24))
+    filename = line(card.get('filename') or row.get('filename') or row.get('detail') or row.get('label'))
+    if filename and filename not in detail_parts:
+        detail_parts.append(filename)
+    detail = line(' · '.join(detail_parts), 350)
+    return {'title': title or provider, 'detail': detail or provider, 'quality': quality}
 
 
 def quality_choices(rows):

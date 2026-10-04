@@ -1,3 +1,10 @@
+v1.0.78
+- Preserve provider-supplied rich Cast/Crew person metadata, including profile photos and character/job labels, while keeping initials fallback for name-only providers such as Cinemeta.
+- Show stream Audio and Language information explicitly alongside quality, video format, size and provider.
+- Convert flag-emoji language markers to plain two-letter codes so older Kodi fonts do not show missing/strange glyphs.
+- Keep Home sidebar focused and unfocused labels at the same size; focus remains visible through color and the left indicator.
+- Add regression coverage for the remaining UI/UX items in GitHub issue #39.
+
 v1.0.77
 - Keep a successfully extracted embedded subtitle usable when Gemini/MKGA translation is temporarily unavailable.
 - Treat AI translation as optional after embedded extraction instead of turning a provider timeout/quota/model failure into subtitle loss.

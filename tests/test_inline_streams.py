@@ -59,6 +59,25 @@ class InlineTests(unittest.TestCase):
         value = presentation(self.rows[0])
         self.assertNotIn('\n', value['detail']); self.assertIn('H.265', value['title'])
 
+
+    def test_stream_rows_show_audio_language_without_emoji_glyphs(self):
+        row={'provider':'Torrentio','label':'Torrentio · 4K HEVC TrueHD 7.1 Atmos 9 GB 🇬🇧\nfilm.mkv'}
+        view=presentation(row)
+        self.assertIn('4K',view['title']);self.assertIn('H.265',view['title']);self.assertIn('Torrentio',view['title'])
+        self.assertIn('Audio: TrueHD 7.1 / Atmos',view['detail'])
+        self.assertIn('Lang: GB',view['detail']);self.assertIn('9 GB',view['detail']);self.assertIn('film.mkv',view['detail'])
+        self.assertNotIn('🇬🇧',view['detail'])
+
+    def test_sidebar_focus_does_not_change_label_size(self):
+        tree=ET.parse(ROOT/'resources/skins/Main/1080i/script-stremio-nimbus.xml')
+        sidebar=tree.find('.//control[@id="9000"]')
+        item=sidebar.find('itemlayout');focused=sidebar.find('focusedlayout')
+        item_label=item.find('control[@type="label"]');focused_label=focused.find('control[@type="label"]')
+        self.assertEqual(item_label.findtext('font'),focused_label.findtext('font'))
+        item_icon=item.find('control[@type="image"]');focused_icons=focused.findall('control[@type="image"]')
+        focused_icon=next(node for node in focused_icons if node.findtext('width')=='36')
+        self.assertEqual((item_icon.findtext('width'),item_icon.findtext('height')),(focused_icon.findtext('width'),focused_icon.findtext('height')))
+
     def test_open_back_restores_episode_without_playing(self):
         w=self.win; w.choose_source('tt1:2:4',resume_ms=65000)
         self.assertEqual(w.getProperty('streams_open'),'true'); self.assertEqual(w.focus,7100)

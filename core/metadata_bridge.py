@@ -35,6 +35,61 @@ def _dedupe(values):
     return out
 
 
+def _person_image(value):
+    if not isinstance(value, str):
+        return ''
+    value = value.strip()
+    if re.fullmatch(r'/[A-Za-z0-9._/-]+', value):
+        return 'https://image.tmdb.org/t/p/w342' + value
+    return value if re.match(r'^https?://', value, re.I) else ''
+
+
+def _person_rows(value, default_job):
+    rows = []
+    for entry in _list(value):
+        if isinstance(entry, dict):
+            nested = entry.get('person') if isinstance(entry.get('person'), dict) else entry
+            name = str(nested.get('name') or nested.get('title') or entry.get('name') or '').strip()
+            image = _person_image(nested.get('photo') or nested.get('image') or nested.get('profile')
+                                  or nested.get('profile_path') or nested.get('poster') or nested.get('thumbnail'))
+            specific = entry.get('character') or entry.get('job') or entry.get('role') or nested.get('character') or nested.get('job')
+            job = ('as ' + str(specific).strip()) if entry.get('character') and str(specific).strip() else str(specific or default_job).strip()
+        else:
+            name, image, job = str(entry).strip(), '', default_job
+        if name:
+            rows.append({'name': name, 'job': job or default_job, 'poster': image})
+    return rows
+
+
+def _merge_people(rows):
+    merged, order = {}, []
+    generic = {'Cast', 'Director', 'Writer'}
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        name = str(row.get('name') or '').strip()
+        if not name:
+            continue
+        key = name.casefold()
+        if key not in merged:
+            merged[key] = {'name': name, 'job': str(row.get('job') or '').strip(),
+                           'poster': _person_image(row.get('poster'))}
+            order.append(key)
+            continue
+        current = merged[key]
+        if not current.get('poster') and row.get('poster'):
+            current['poster'] = _person_image(row.get('poster'))
+        old_job, new_job = current.get('job') or '', str(row.get('job') or '').strip()
+        if new_job and new_job != old_job:
+            if old_job in generic and new_job not in generic:
+                current['job'] = new_job
+            elif new_job in generic and old_job not in generic:
+                pass
+            elif new_job not in old_job.split(' / '):
+                current['job'] = ' / '.join(v for v in (old_job, new_job) if v)
+    return [merged[key] for key in order]
+
+
 def languages(meta):
     """Return provider-supplied spoken/audio languages as label/code rows.
 
@@ -68,9 +123,13 @@ def normalize(meta, kind='', identity=''):
         meta.setdefault('type', kind)
     genres = _list(meta.get('genres') or meta.get('genre'))
     meta['genres'] = _dedupe([str(v) for v in genres])
-    meta['cast'] = _dedupe([str(v) for v in _list(meta.get('cast'))])
-    meta['director'] = _dedupe([str(v) for v in _list(meta.get('director'))])
-    meta['writer'] = _dedupe([str(v) for v in _list(meta.get('writer'))])
+    cast_people = _merge_people(_person_rows(meta.get('castPeople'), 'Cast') + _person_rows(meta.get('cast'), 'Cast'))
+    director_people = _merge_people(_person_rows(meta.get('directorPeople'), 'Director') + _person_rows(meta.get('director'), 'Director'))
+    writer_people = _merge_people(_person_rows(meta.get('writerPeople'), 'Writer') + _person_rows(meta.get('writer'), 'Writer'))
+    meta['castPeople'], meta['directorPeople'], meta['writerPeople'] = cast_people, director_people, writer_people
+    meta['cast'] = [row['name'] for row in cast_people]
+    meta['director'] = [row['name'] for row in director_people]
+    meta['writer'] = [row['name'] for row in writer_people]
     videos = meta.get('videos')
     meta['videos'] = [v for v in videos if isinstance(v, dict)] if isinstance(videos, list) else []
     links = meta.get('links')
@@ -113,7 +172,7 @@ def merged_meta(kind, identity, providers=(), fetcher=fetch):
         results = list(pool.map(one, rows)) if rows else []
 
     merged = {'id': identity, 'type': kind, 'genres': [], 'cast': [],
-              'director': [], 'writer': [], 'videos': [], 'links': []}
+              'director': [], 'writer': [], 'castPeople': [], 'directorPeople': [], 'writerPeople': [], 'videos': [], 'links': []}
     for meta in results:
         if not meta:
             continue
@@ -123,6 +182,8 @@ def merged_meta(kind, identity, providers=(), fetcher=fetch):
                 merged[field] = value
         for field in ('genres', 'cast', 'director', 'writer', 'links'):
             merged[field] = _dedupe(merged.get(field, []) + meta.get(field, []))
+        for field in ('castPeople', 'directorPeople', 'writerPeople'):
+            merged[field] = _merge_people(merged.get(field, []) + meta.get(field, []))
         if len(meta.get('videos', [])) > len(merged.get('videos', [])):
             merged['videos'] = meta['videos']
         if not merged.get('trailers') and meta.get('trailers'):
@@ -162,19 +223,13 @@ def details(kind, identity='', query='', providers=(), fetcher=fetch):
 
 
 def people(meta, role='cast'):
-    roles = [('Cast', meta.get('cast', []))]
     if role == 'crew':
-        roles = [('Director', meta.get('director', [])), ('Writer', meta.get('writer', []))]
-    merged, order = {}, []
-    for job, names in roles:
-        for name in _list(names):
-            name = str(name)
-            if name not in merged:
-                merged[name] = []
-                order.append(name)
-            if job not in merged[name]:
-                merged[name].append(job)
-    return [{'name': name, 'job': ' / '.join(merged[name])} for name in order]
+        rows = list(meta.get('directorPeople') or _person_rows(meta.get('director'), 'Director'))
+        rows += list(meta.get('writerPeople') or _person_rows(meta.get('writer'), 'Writer'))
+    else:
+        rows = list(meta.get('castPeople') or _person_rows(meta.get('cast'), 'Cast'))
+    return _merge_people(rows)
+
 def trailer_rows(meta):
     rows, seen = [], set()
     for row in meta.get('trailerStreams') or []:
