@@ -1,3 +1,9 @@
+v1.0.77
+- Keep a successfully extracted embedded subtitle usable when Gemini/MKGA translation is temporarily unavailable.
+- Treat AI translation as optional after embedded extraction instead of turning a provider timeout/quota/model failure into subtitle loss.
+- Preserve the translation failure as a sanitized Support diagnostic while clearly telling the viewer the original video subtitle remains active.
+- Add regression coverage for GitHub issue #40.
+
 v1.0.76
 - Make Home infinite catalog pagination independent of WindowXML D-pad callbacks on Fire TV and other Kodi devices.
 - Poll the active Home row selection while Home is visible and trigger the existing lazy loader when focus reaches the final four cards.

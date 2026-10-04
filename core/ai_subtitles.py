@@ -602,19 +602,32 @@ def prepare_embedded_auto(stream_url, profile, progress_callback=None):
     )
     source_name = CODE_NAMES.get(source_language, source_language or "Auto")
     _progress(progress_callback, 15, source_name + " subtitle ready · preserving original sync")
-    if source_language == settings["target"]:
-        final_path = source_path
-    else:
+    translation_error = None
+    translated = source_language == settings["target"]
+    final_path = source_path
+    if not translated:
         def translation_progress(percent, message):
             _progress(progress_callback, 20 + int(percent * 0.75), message)
-        final_path = translate_subtitle_file(
-            source_path, cache, settings["api_key"], settings["target"], source_language,
-            progress_callback=translation_progress
-        )
+        try:
+            final_path = translate_subtitle_file(
+                source_path, cache, settings["api_key"], settings["target"], source_language,
+                progress_callback=translation_progress
+            )
+            translated = final_path != source_path
+        except Exception as error:
+            # Embedded extraction already succeeded. AI translation is optional:
+            # preserve the usable source subtitle instead of dropping subtitles
+            # entirely when Gemini/cloud translation is temporarily unavailable.
+            translation_error = error
+            final_path = source_path
+            _progress(progress_callback, 100, "Translation unavailable · using original video subtitle")
     return {
         "path": final_path,
         "source_language": source_language,
-        "target_language": settings["target"],
+        "target_language": settings["target"] if translated else source_language,
+        "requested_target_language": settings["target"],
+        "translated": translated,
+        "translation_error": translation_error,
         "source": "video",
         "track": track,
     }

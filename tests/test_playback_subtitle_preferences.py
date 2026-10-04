@@ -10,12 +10,12 @@ from unittest.mock import Mock, patch
 ROOT = Path(__file__).resolve().parents[1]
 
 class PlaybackSubtitlePreferencesTests(unittest.TestCase):
-    def prepare(self, enabled, cloud_result=None, entries=None, source="0"):
+    def prepare(self, enabled, cloud_result=None, entries=None, source="0", embedded_result=None):
         tree = ast.parse((ROOT / "service.py").read_text())
         cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "PlaybackWatcher")
         method = next(n for n in cls.body if isinstance(n, ast.FunctionDef) and n.name == "_prepare")
         progress, errors, notice = Mock(), Mock(), Mock()
-        cloud, translate, download, embedded = Mock(return_value=cloud_result), Mock(return_value="/tmp/translated.srt"), Mock(return_value="/tmp/original.srt"), Mock(return_value=None)
+        cloud, translate, download, embedded = Mock(return_value=cloud_result), Mock(return_value="/tmp/translated.srt"), Mock(return_value="/tmp/original.srt"), Mock(return_value=embedded_result)
         premium, signin, ai, setup = (ModuleType(name) for name in ("lib.vortexo_premium", "lib.signin", "ai_subtitles", "setup_profile"))
         premium.resolve_subtitle_cloud = cloud
         signin.account_store = lambda: object()
@@ -63,6 +63,16 @@ class PlaybackSubtitlePreferencesTests(unittest.TestCase):
         result.errors.assert_not_called()
         result.notice.assert_not_called()
         result.progress.close.assert_called_once()
+
+
+    def test_embedded_translation_failure_keeps_original_and_records_translation_diagnostic(self):
+        error=RuntimeError("provider unavailable")
+        embedded={"path":"/tmp/original-embedded.srt","source_language":"en","target_language":"en","requested_target_language":"bs","translated":False,"translation_error":error}
+        result=self.prepare(True, entries=[], source="1", embedded_result=embedded)
+        result.embedded.assert_called_once()
+        result.player._apply.assert_called_once_with("/tmp/original-embedded.srt","digest","video original","en","en")
+        result.errors.assert_called_once_with("AI subtitles embedded translation",error)
+        result.notice.assert_called_once_with("AI translation unavailable; using the original video subtitle.",4500)
 
     def test_embedded_only_no_result_reports_diagnostic_without_unbound_entries(self):
         result = self.prepare(True, entries=[], source="1")

@@ -286,6 +286,12 @@ class AISubtitleTests(unittest.TestCase):
             )
         self.assertEqual(result, str(source))
         self.assertEqual(opener.requests, [])
+    def test_service_distinguishes_embedded_translation_failure_from_source_failure(self):
+        source = (ROOT / "service.py").read_text(encoding="utf-8")
+        self.assertIn('AI subtitles embedded translation', source)
+        self.assertIn('AI translation unavailable; using the original video subtitle.', source)
+        self.assertIn('"video original"', source)
+
     def test_auto_source_prefers_exact_target_then_clean_english(self):
         module = load_module()
         tracks = [
@@ -422,8 +428,6 @@ class AISubtitleTests(unittest.TestCase):
         self.assertIn("self.monitor.waitForAbort(0.25)", source)
 
 
-if __name__ == "__main__":
-    unittest.main()
 
 class EmbeddedKodi22Tests(unittest.TestCase):
     def test_kodi22_extraction_falls_back_to_second_text_track(self):

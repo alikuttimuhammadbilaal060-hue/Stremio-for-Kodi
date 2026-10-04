@@ -209,8 +209,16 @@ class PlaybackWatcher(xbmc.Player):
             progress.update(25, "Checking subtitles embedded in the video…")
             try:
                 result = prepare_embedded_auto(current, PROFILE, progress_callback=update)
-                if result and self._apply(result["path"], digest, "video", result["source_language"], result["target_language"]):
-                    return
+                if result:
+                    translation_error = result.get("translation_error")
+                    if translation_error is not None:
+                        _remember_ai_error("AI subtitles embedded translation", translation_error)
+                    if self._apply(result["path"], digest,
+                                   "AI translated video" if result.get("translated") else "video original",
+                                   result["source_language"], result["target_language"]):
+                        if translation_error is not None:
+                            _notify("AI translation unavailable; using the original video subtitle.", 4500)
+                        return
             except Exception as error:
                 embedded_error = error
                 _remember_ai_error("AI subtitles embedded source", error)
