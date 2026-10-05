@@ -114,8 +114,8 @@ def repo_context(statement):
         snippets.append(f"--- {name} ---\n{body}")
     return (
         "LIKELY FILES:\n" + "\n".join(likely[:20])
-        + "\n\nMATCHES:\n" + "\n".join(matches)
-        + "\n\nFILE SNIPPETS:\n" + "\n\n".join(snippets)
+        + "\n\nMATCHES:\n" + "\n".join(matches)[:4000]
+        + "\n\nFILE SNIPPETS:\n" + "\n\n".join(snippets)[:12500]
     )
 
 def ai_chat(ai_token, messages, model="mkga-free", max_tokens=1400):

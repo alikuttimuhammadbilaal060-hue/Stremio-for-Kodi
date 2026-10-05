@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<addon id="script.stremioelec" name="Stremio for Kodi" version="1.0.81" provider-name="0eroiQ">
+<addon id="script.stremioelec" name="Stremio for Kodi" version="1.0.82" provider-name="0eroiQ">
   <requires>
     <import addon="xbmc.python" version="3.0.0" />
     <import addon="script.module.qrcode" version="6.1.0+matrix.3" optional="true" />
@@ -18,7 +18,7 @@
     <platform>all</platform>
     <license>GPL-2.0-or-later</license>
     <source>https://github.com/0eroiQ/Stremio-for-Kodi</source>
-    <news>1.0.80: Add explicit Raspberry Pi 3 couch-test confirmation to the privacy-safe low-power benchmark report; MKGA review remains required before issue closure.\n\n1.0.79: Add Support → Run low-power benchmark and a repeatable Raspberry Pi 3 performance pass; issue #47 remains open until real Pi 3 evidence is reviewed.
+    <news>1.0.82: Add MKGA playback branding for free accounts, independent of subtitles. Stremio for Kodi remains free; voluntary supporter contributions help fund development, maintenance and new features. Supporters receive playback without the watermark. Add release notes with Update / Cancel for future updates. Older versions keep their previous behavior; disable Kodi automatic addon updates to stay on an older version.\n\n1.0.80: Add explicit Raspberry Pi 3 couch-test confirmation to the privacy-safe low-power benchmark report; MKGA review remains required before issue closure.\n\n1.0.79: Add Support → Run low-power benchmark and a repeatable Raspberry Pi 3 performance pass; issue #47 remains open until real Pi 3 evidence is reviewed.
 
 1.0.78: Preserve rich Cast/Crew photos and roles from metadata providers, show stream Audio/Language details without emoji glyph dependency, and keep sidebar label sizing consistent.
 

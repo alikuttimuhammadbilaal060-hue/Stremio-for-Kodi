@@ -393,6 +393,10 @@ def main():
     subtitle_sync = SubtitleSettingsSync()
     continue_sync = ContinueIndexSync()
     skip_watcher = SkipSegmentWatcher(PROFILE)
+    from lib.playback_watermark import PlaybackWatermark
+    watermark = PlaybackWatermark(player, ADDON)
+    from lib.update_notice import UpdateNotice
+    update_notice = UpdateNotice(ADDON, PROFILE)
     session = xbmcgui.Window(SESSION_WINDOW_ID)
     session.setProperty(PROGRESS_READY, "true")
     try:
@@ -402,16 +406,20 @@ def main():
         subtitle_sync.tick()
         continue_sync.tick()
         skip_watcher.tick()
+        watermark.tick()
         while not monitor.waitForAbort(1):
             subtitle_sync.tick()
             continue_sync.tick()
             player.tick()
+            watermark.tick()
+            update_notice.tick()
             skip_watcher.tick()
             while flush_pending(player):
                 pass
         while flush_pending(player):
             pass
     finally:
+        watermark.close()
         try:
             skip_watcher.close()
         except Exception:

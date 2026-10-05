@@ -89,4 +89,5 @@
     <setting type="lsep" label="Languages and automatic subtitle download follow Kodi Player settings." />
     <setting type="lsep" label="Unverified HDMI: decoded audio; display mode switching off. Decoder defaults retained." />
   </category>
+
 </settings>
