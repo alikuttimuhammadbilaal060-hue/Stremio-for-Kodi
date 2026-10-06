@@ -28,11 +28,10 @@ class IssueRegressionTests(unittest.TestCase):
         real_os = account.os
 
         class OSProxy:
-            path = real_os.path
-            fdopen = staticmethod(real_os.fdopen)
-            fsync = staticmethod(real_os.fsync)
-            replace = staticmethod(real_os.replace)
-            close = staticmethod(real_os.close)
+            def __getattr__(self, name):
+                if name == 'fchmod':
+                    raise AttributeError(name)
+                return getattr(real_os, name)
 
         account.os = OSProxy()
         with tempfile.TemporaryDirectory() as directory:

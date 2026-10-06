@@ -10,6 +10,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class SigninTests(unittest.TestCase):
+    def setUp(self):
+        network_patch = patch('urllib.request.OpenerDirector.open', side_effect=AssertionError('No network in sign-in fixtures'))
+        network = network_patch.start()
+        self.addCleanup(network_patch.stop)
+        self.addCleanup(network.assert_not_called)
+        premium_patch = patch.dict('sys.modules', {'lib.vortexo_premium': types.SimpleNamespace(refresh_quiet=Mock())})
+        premium_patch.start()
+        self.addCleanup(premium_patch.stop)
+
     def test_setup_completion_is_not_login(self):
         tree = ast.parse((ROOT/'lib/signin.py').read_text())
         fn = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'signed_in')
@@ -65,7 +74,17 @@ class SigninTests(unittest.TestCase):
                  'xbmc': Mock(), 'threading': threading}
         scope['xbmc'].Monitor.return_value.abortRequested.return_value = False
         exec(compile(ast.Module(body=[fn], type_ignores=[]), '<link>', 'exec'), scope)
-        scope['link_account'](window)
+        def verify_identity(token):
+            store.save.assert_not_called()
+            self.assertEqual(token,'test-only-token')
+            return 'stable-fixture-user'
+        snapshots=[]
+        from copy import deepcopy
+        store.save.side_effect=lambda value:snapshots.append(deepcopy(value))
+        with patch.dict('sys.modules',{'account':types.SimpleNamespace(pull_user_id=verify_identity)}):
+            scope['link_account'](window)
+        self.assertEqual(snapshots[0]['verified_identity']['user_id'],'stable-fixture-user')
+        self.assertEqual(snapshots[0]['token'],'test-only-token')
         self.assertTrue(window.authenticated)
         self.assertEqual(store.save.call_args.args[0]['token'], 'test-only-token')
         window.close.assert_called_once()
@@ -104,7 +123,8 @@ class SigninTests(unittest.TestCase):
         }
         scope['xbmc'].Monitor.return_value.abortRequested.return_value = False
         exec(compile(ast.Module(body=[fn], type_ignores=[]), '<link>', 'exec'), scope)
-        scope['link_account'](window)
+        with patch.dict('sys.modules', {'account': types.SimpleNamespace(pull_user_id=lambda token: 'stable-fixture-user')}):
+            scope['link_account'](window)
         self.assertEqual(calls['count'], 2)
         self.assertTrue(window.authenticated)
         self.assertEqual(store.save.call_args.args[0]['token'], 'test-only-token')
