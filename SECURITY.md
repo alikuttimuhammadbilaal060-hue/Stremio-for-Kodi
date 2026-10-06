@@ -1,21 +1,27 @@
 # Security Policy
 
-## Supported Versions
+## Supported versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+Security fixes target the latest stable Stremio for Kodi release. Update to the
+latest release before checking whether a problem remains. Older releases and
+unreleased branches do not receive separate security backports.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+MKGA Connector is a separate addon. Include its version when a report involves
+pairing, remote commands, or profile installation.
 
-## Reporting a Vulnerability
+## Reporting a vulnerability
 
-Use this section to tell people how to report a vulnerability.
+Use GitHub's [private vulnerability reporting form](https://github.com/0eroiQ/Stremio-for-Kodi/security/advisories/new)
+for suspected security vulnerabilities. Reports submitted through this form are
+visible to the repository maintainers rather than public issue readers.
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+Include the affected addon and Kodi versions, operating system, impact, and
+minimal reproduction steps. Redact Stremio authentication tokens, MKGA access
+and pairing tokens, provider URLs containing credentials, API keys, account
+information, and device paths. Do not include live credentials in a report.
+
+Avoid public issues for exploit details or sensitive diagnostics. Ordinary bugs
+and feature requests belong in [GitHub Issues](https://github.com/0eroiQ/Stremio-for-Kodi/issues).
+
+Maintainers will use the private report to clarify the impact, discuss a fix,
+and coordinate disclosure. No fixed response time is currently guaranteed.
