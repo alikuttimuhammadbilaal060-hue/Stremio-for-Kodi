@@ -34,6 +34,27 @@ def direct_url(stream):
             and isinstance(hints, dict) and not hints.get('proxyHeaders'))
 
 
+def embedded_sources(meta, identity):
+    """Return exclusive video streams, or None when aggregation is needed."""
+    video = next((v for v in meta.get('videos', [])
+                  if isinstance(v, dict) and v.get('id') == identity), None)
+    if not video or not isinstance(video.get('streams'), list):
+        return None
+    rows, skipped = [], 0
+    for stream in video['streams']:
+        if not isinstance(stream, dict) or not direct_url(stream):
+            skipped += 1
+            continue
+        hints = stream.get('behaviorHints') or {}
+        detail = stream.get('title') or stream.get('name') or video.get('title') or 'Stream'
+        name = stream.get('name') or 'Stored video'
+        rows.append({'url': stream['url'], 'label': '{} · {}'.format(name, detail),
+                     'provider': name, 'detail': detail,
+                     'subtitles': stream.get('subtitles', []),
+                     'filename': hints.get('filename', '')})
+    return rows, skipped, 0
+
+
 def collect(providers, kind, identity, fetcher=fetch, timing=None):
     selected, seen = [], set()
     for provider in providers:

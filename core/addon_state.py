@@ -47,7 +47,14 @@ def migrate_profile(source, target, set_setting):
 
 
 def get_addon():
-    addon = xbmcaddon.Addon(ADDON_ID)
+    try:
+        addon = xbmcaddon.Addon(ADDON_ID)
+    except RuntimeError:
+        # Kodi can resolve the running script context while an explicit lookup
+        # is unavailable during install/update. Never accept another addon.
+        addon = xbmcaddon.Addon()
+        if addon.getAddonInfo('id') != ADDON_ID:
+            raise RuntimeError('Stremio for Kodi addon context unavailable') from None
     # Legacy migration is best-effort only. A malformed/read-only former profile
     # must never prevent the current addon from starting or signing in.
     try:

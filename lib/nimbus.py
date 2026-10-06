@@ -899,7 +899,8 @@ class InfoWindow(InlineStreams, NimbusWindow):
                 if focus_video:
                     self.season = int(focus_video.get('season', self.season))
         else:
-            self.play_target = self.meta['id']
+            hints = self.meta.get('behaviorHints') or {}
+            self.play_target = (hints.get('defaultVideoId') if isinstance(hints, dict) else None) or self.meta['id']
             self.resume_ms = (saved.get('state') or {}).get('timeOffset') or 0
         self.setProperty('playlabel', 'Resume' if api.resume_seconds(self.resume_ms) else 'Play')
         self.prefetch_streams(self.play_target)

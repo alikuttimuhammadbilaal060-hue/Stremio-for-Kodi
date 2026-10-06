@@ -21,7 +21,7 @@ from account import Store, library_rows
 from addons_core import active_addons
 from metadata_bridge import details, people, seasons, episodes, recommendations, search, trailer_rows
 from protocol import fetch, resource_url
-from sources import collect
+from sources import collect, embedded_sources
 from continue_playback import next_series_episode, resume_seconds
 from stream_ui import stream_card
 from library_actions import member, change
@@ -120,6 +120,11 @@ def stream_cache_state(meta, identity):
     return get(STORE.directory, meta['type'], identity, _stream_provider_signature())
 
 def cached_source_rows(meta, identity):
+    embedded = embedded_sources(meta, identity)
+    if embedded is not None:
+        for row in embedded[0]:
+            row['card'] = stream_card(row)
+        return embedded
     cached=stream_cache_state(meta, identity)
     if not cached:return None
     rows,skipped,failed,_,_,_=cached
@@ -128,6 +133,11 @@ def cached_source_rows(meta, identity):
 
 def source_rows(meta, identity):
     from lib.stream_index import put
+    embedded = embedded_sources(meta, identity)
+    if embedded is not None:
+        for row in embedded[0]:
+            row['card'] = stream_card(row)
+        return embedded
     active = providers()
     timing = []
     rows, skipped, failed = collect(active, meta['type'], identity, timing=timing)
