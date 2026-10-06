@@ -26,6 +26,7 @@ from account import AccountError, Store, create_link, read_link, pull_addons, pu
 from sources import collect, direct_url, supports
 from stream_ui import stream_card
 from continue_playback import button_label, resume_seconds, next_series_episode
+from lib.rpdb import poster_url
 from addons_core import active_addons, community_catalog, configuration_state, descriptor_id, filter_community, merge_account
 from metadata_bridge import (details as metadata_details, people as metadata_people,
                              languages as metadata_languages,
@@ -317,8 +318,9 @@ def item(meta):
         entry.setProperty('StremioRating', str(meta.get('imdbRating')))
     if meta.get('runtime'):
         entry.setProperty('StremioRuntime', str(meta.get('runtime')))
+    poster = poster_url(meta, meta.get('poster'))
     entry.setArt({key: value for key, value in {
-        'poster': meta.get('poster'),
+        'poster': poster,
         'thumb': meta.get('landscape') or meta.get('background') or 'DefaultVideo.png',
         'landscape': meta.get('landscape') or meta.get('background') or 'DefaultVideo.png',
         'fanart': meta.get('background'),
@@ -376,7 +378,7 @@ def episode_item(video, series_meta=None):
         art.update({'thumb': thumb, 'landscape': thumb, 'poster': thumb})
     if isinstance(fanart, str) and fanart:
         art['fanart'] = fanart
-    show_poster = series_meta.get('poster')
+    show_poster = poster_url(series_meta, series_meta.get('poster'))
     show_fanart = series_meta.get('background')
     show_logo = series_meta.get('logo')
     if isinstance(show_poster, str) and show_poster:

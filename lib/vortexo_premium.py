@@ -234,11 +234,20 @@ def _bounded_stremio_hub(payload):
         raw_mkga = {}
     if not isinstance(raw_mkga, dict):
         raise PremiumError("Invalid MKGA settings response.")
+    rpdb_key = raw_mkga.get("rpdbApiKey")
+    if rpdb_key is not None and not isinstance(rpdb_key, str):
+        raise PremiumError("Invalid MKGA settings response.")
+    rpdb_key = (rpdb_key or "").strip()
+    if len(rpdb_key) > 256 or any(ch.isspace() for ch in rpdb_key):
+        raise PremiumError("Invalid MKGA settings response.")
     mkga = {
         "skipIntro": bool(raw_mkga.get("skipIntro", True)),
         "skipRecap": bool(raw_mkga.get("skipRecap", True)),
         "skipOutro": bool(raw_mkga.get("skipOutro", True)),
         "skipPostCredits": bool(raw_mkga.get("skipPostCredits", True)),
+        "rpdbEnabled": bool(raw_mkga.get("rpdbEnabled")) and bool(rpdb_key),
+        "rpdbConfigured": bool(raw_mkga.get("rpdbConfigured")) or bool(rpdb_key),
+        "rpdbApiKey": rpdb_key,
         "updatedAt": int(raw_mkga.get("updatedAt") or 0),
     }
     return {"linked": True, "plan": plan, "capabilities": capabilities, "settings": safe, "mkgaSettings": mkga}

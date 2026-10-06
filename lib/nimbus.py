@@ -15,6 +15,7 @@ from lib import backend as api
 from lib import mdblist
 from lib.trailer_options import imdb_id, autoplay_delay, autoplay_enabled
 from lib.sidebar_nav import menu_items, menu_action, home_index
+from lib.rpdb import poster_url
 
 ADDON = get_addon()
 PATH = ADDON.getAddonInfo('path')
@@ -100,8 +101,9 @@ def episode_date(row):
 
 def item(row):
     li = xbmcgui.ListItem(clean(row.get('name') or row.get('title') or ''))
-    li.setArt({'poster': row.get('poster', ''), 'thumb': row.get('thumbnail') or row.get('poster', ''),
-               'fanart': row.get('background') or row.get('poster', '')})
+    poster = poster_url(row, row.get('poster', ''))
+    li.setArt({'poster': poster, 'thumb': row.get('thumbnail') or poster,
+               'fanart': row.get('background') or poster})
     li.setProperty('id', str(row.get('id', '')))
     li.setProperty('type', str(row.get('type', 'movie')))
     li.setProperty('plot', clean(row.get('description')))
