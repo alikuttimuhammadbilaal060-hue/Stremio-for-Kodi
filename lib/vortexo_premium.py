@@ -199,13 +199,26 @@ def _bounded_stremio_hub(payload):
     if not isinstance(payload, dict) or not isinstance(payload.get("linked"), bool):
         raise PremiumError("Invalid MKGA Stremio settings response.")
     if not payload["linked"]:
-        return {"linked": False, "plan": "basic", "capabilities": {}, "settings": None, "mkgaSettings": None}
+        return {
+            "linked": False, "plan": "basic", "capabilities": {},
+            "remoteSettingsAllowed": False, "settings": None,
+            "kodiSettings": None, "mkgaSettings": None
+        }
     plan = payload.get("plan")
     capabilities = payload.get("capabilities")
-    settings = payload.get("settings")
-    if plan not in ("basic", "supporter", "lifetime"):
+    if plan not in ("basic", "supporter", "lifetime") or not isinstance(capabilities, dict):
         raise PremiumError("Invalid MKGA Stremio settings response.")
-    if not isinstance(capabilities, dict) or not isinstance(settings, dict):
+
+    remote_allowed = bool(payload.get("remoteSettingsAllowed"))
+    if not remote_allowed:
+        return {
+            "linked": True, "plan": plan, "capabilities": capabilities,
+            "remoteSettingsAllowed": False, "settings": None,
+            "kodiSettings": None, "mkgaSettings": None
+        }
+
+    settings = payload.get("settings")
+    if not isinstance(settings, dict):
         raise PremiumError("Invalid MKGA Stremio settings response.")
     languages = settings.get("preferredLanguages")
     if not isinstance(languages, list) or not languages or len(languages) > 5:
@@ -229,19 +242,76 @@ def _bounded_stremio_hub(payload):
         "sourcePriority": [str(x)[:24] for x in settings.get("sourcePriority", []) if isinstance(x, str)][:5],
         "updatedAt": int(settings.get("updatedAt") or 0),
     }
+
+    raw_kodi = payload.get("kodiSettings")
+    if raw_kodi is None:
+        raw_kodi = {}
+    if not isinstance(raw_kodi, dict):
+        raise PremiumError("Invalid MKGA Kodi settings response.")
+    values = raw_kodi.get("values") or {}
+    if not isinstance(values, dict):
+        raise PremiumError("Invalid MKGA Kodi settings response.")
+    bool_keys = {
+        "startup_autostart", "trailers_enabled", "trailers_auto", "playback_back_stops",
+        "ui_animations", "search_native_keyboard", "ui_dim_rows", "ui_show_logo",
+        "ui_show_plot", "ui_show_rating", "ui_show_genres", "ui_show_runtime",
+        "rating_mdblist", "rating_imdb", "rating_tmdb", "rating_trakt",
+        "rating_tomatoes", "rating_metacritic", "rating_letterboxd",
+    }
+    enum_keys = {
+        "startup_delay": 5, "trailers_quality": 3, "trailers_auto_scope": 3,
+        "trailers_delay": 6, "ui_theme": 5, "ui_focus_color": 6,
+    }
+    text_keys = {
+        "cache_catalog_ttl": 48, "cache_search_ttl": 48, "cache_metadata_ttl": 48,
+        "cache_ratings_ttl": 48, "cache_max_mb": 48,
+    }
+    clean_values = {}
+    for key in bool_keys:
+        if key in values:
+            if not isinstance(values[key], bool):
+                raise PremiumError("Invalid MKGA Kodi settings response.")
+            clean_values[key] = values[key]
+    for key, count in enum_keys.items():
+        if key in values:
+            raw = str(values[key])
+            if not raw.isdigit() or not 0 <= int(raw) < count:
+                raise PremiumError("Invalid MKGA Kodi settings response.")
+            clean_values[key] = raw
+    for key, limit in text_keys.items():
+        if key in values:
+            raw = str(values[key]).strip()
+            if len(raw) > limit or any(ord(ch) < 32 for ch in raw):
+                raise PremiumError("Invalid MKGA Kodi settings response.")
+            clean_values[key] = raw
+    kodi = {"values": clean_values, "updatedAt": int(raw_kodi.get("updatedAt") or 0)}
+
     raw_mkga = payload.get("mkgaSettings")
     if raw_mkga is None:
         raw_mkga = {}
     if not isinstance(raw_mkga, dict):
+        raise PremiumError("Invalid MKGA settings response.")
+    rpdb_key = raw_mkga.get("rpdbApiKey")
+    if rpdb_key is not None and not isinstance(rpdb_key, str):
+        raise PremiumError("Invalid MKGA settings response.")
+    rpdb_key = (rpdb_key or "").strip()
+    if len(rpdb_key) > 256 or any(ch.isspace() for ch in rpdb_key):
         raise PremiumError("Invalid MKGA settings response.")
     mkga = {
         "skipIntro": bool(raw_mkga.get("skipIntro", True)),
         "skipRecap": bool(raw_mkga.get("skipRecap", True)),
         "skipOutro": bool(raw_mkga.get("skipOutro", True)),
         "skipPostCredits": bool(raw_mkga.get("skipPostCredits", True)),
+        "rpdbEnabled": bool(raw_mkga.get("rpdbEnabled")) and bool(rpdb_key),
+        "rpdbConfigured": bool(raw_mkga.get("rpdbConfigured")) or bool(rpdb_key),
+        "rpdbApiKey": rpdb_key,
         "updatedAt": int(raw_mkga.get("updatedAt") or 0),
     }
-    return {"linked": True, "plan": plan, "capabilities": capabilities, "settings": safe, "mkgaSettings": mkga}
+    return {
+        "linked": True, "plan": plan, "capabilities": capabilities,
+        "remoteSettingsAllowed": True, "settings": safe,
+        "kodiSettings": kodi, "mkgaSettings": mkga
+    }
 
 
 def resolve_subtitle_cloud(store, kind, identity, filename, target_language, opener=None):

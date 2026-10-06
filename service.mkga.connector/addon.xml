@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<addon id="service.mkga.connector" name="MKGA Connector" version="0.1.1" provider-name="MKGA.TV">
+<addon id="service.mkga.connector" name="MKGA Connector" version="0.3.9" provider-name="MKGA.TV">
   <requires><import addon="xbmc.python" version="3.0.0"/></requires>
   <extension point="xbmc.python.script" library="default.py"><provides>executable</provides></extension>
   <extension point="xbmc.service" library="service.py" start="login"/>
   <extension point="xbmc.addon.metadata">
     <summary lang="en_GB">Pair Kodi with your MKGA.TV account</summary>
     <description lang="en_GB">Securely pair this Kodi device with MKGA.TV so you can install and maintain approved MKGA repositories and addons from your account.</description>
+    <news>0.3.9: Report bounded Kodi version and process bitness, Linux distribution and image build targets, installation method, local storage availability and native MKGA capabilities for device compatibility checks.</news>
     <platform>all</platform><license>GPL-2.0-or-later</license>
   </extension>
 </addon>

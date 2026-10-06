@@ -196,10 +196,26 @@ def flush_pending(player):
     if pending is None:
         return False
     try:
-        sync_progress(
-            _account_store(), pending['context'], pending['position_ms'],
+        store = _account_store()
+        remote = sync_progress(
+            store, pending['context'], pending['position_ms'],
             pending['duration_ms'], pending['watched_ms'],
             ended=pending['ended'])
+        if remote is not None:
+            # The remote write has been verified. Update local CW immediately so
+            # Home does not wait for the 15-minute maintenance worker.
+            try:
+                from lib.playback_refresh import refresh_continue_index
+                refresh_continue_index(store, pending['context'], remote)
+            except Exception:
+                pass
+            # Tell any open MKGA windows that account.json / local CW now represent
+            # the just-finished playback session. This signal contains IDs only.
+            try:
+                from lib.progress_signal import publish
+                publish(pending['context'])
+            except Exception:
+                pass
     except Exception:
         # Playback must never fail because account progress could not be synced.
         return False

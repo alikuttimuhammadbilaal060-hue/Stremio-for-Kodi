@@ -38,11 +38,13 @@ class KodiRepositoryTests(unittest.TestCase):
                 self.assertEqual(directory.find('datadir').get('zip'), 'true')
                 self.assertEqual(repo.get('version'), '1.1.0')
                 self.assertEqual(repo.get('name'), 'MKGA Repository')
-            connector = target / 'service.mkga.connector' / 'service.mkga.connector-0.1.1.zip'
+            version = ET.parse(ROOT / 'service.mkga.connector/addon.xml').getroot().get('version')
+            connector = target / 'service.mkga.connector' / ('service.mkga.connector-' + version + '.zip')
             self.assertTrue(connector.is_file())
             with zipfile.ZipFile(connector) as archive:
                 manifest = ET.fromstring(archive.read('service.mkga.connector/addon.xml'))
                 self.assertEqual(manifest.get('id'), 'service.mkga.connector')
+                self.assertEqual(manifest.get('version'), version)
             wrong = root / 'script.stremioelec-9.9.9.zip'
             wrong.write_bytes(before)
             with self.assertRaises(ValueError):

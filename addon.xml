@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<addon id="script.stremioelec" name="Stremio for Kodi" version="1.0.70" provider-name="0eroiQ">
+<addon id="script.stremioelec" name="Stremio for Kodi" version="1.0.83" provider-name="0eroiQ">
   <requires>
     <import addon="xbmc.python" version="3.0.0" />
     <import addon="script.module.qrcode" version="6.1.0+matrix.3" optional="true" />
@@ -18,7 +18,27 @@
     <platform>all</platform>
     <license>GPL-2.0-or-later</license>
     <source>https://github.com/0eroiQ/Stremio-for-Kodi</source>
-    <news>1.0.62: Faster Home refresh with cursor-safe infinite catalogs, incremental row patching, and background-only account/library/CW maintenance.
+    <news>1.0.83: Add MKGA Supporter remote settings from MKGA.TV/phone while keeping full local/manual settings and Gemini BYOK free on Kodi. Support MKGA Build Welcome and prevent stale account/library updates from mixing accounts.\n\n1.0.82: Add MKGA playback branding for free accounts, independent of subtitles. Stremio for Kodi remains free; voluntary supporter contributions help fund development, maintenance and new features. Supporters receive playback without the watermark. Add release notes with Update / Cancel for future updates. Older versions keep their previous behavior; disable Kodi automatic addon updates to stay on an older version.\n\n1.0.80: Add explicit Raspberry Pi 3 couch-test confirmation to the privacy-safe low-power benchmark report; MKGA review remains required before issue closure.\n\n1.0.79: Add Support → Run low-power benchmark and a repeatable Raspberry Pi 3 performance pass; issue #47 remains open until real Pi 3 evidence is reviewed.
+
+1.0.78: Preserve rich Cast/Crew photos and roles from metadata providers, show stream Audio/Language details without emoji glyph dependency, and keep sidebar label sizing consistent.
+
+1.0.77: Keep the original embedded subtitle active when optional AI translation fails, while preserving a private diagnostic for Support.
+
+1.0.76: Make Home infinite scrolling work even on Kodi/Fire TV builds that consume horizontal D-pad actions internally; lazy loading remains 16 items per page.
+
+1.0.75: Make Settings focus unambiguous: inactive selected rows stay dim, while the bright highlight appears only in the column that currently has D-pad focus.
+
+1.0.74: Refresh Continue Watching and episode watched state immediately after confirmed playback sync, without waiting for the maintenance interval.
+
+1.0.73: Let full-episode BYOK subtitle translations finish by scaling the request timeout to subtitle size, up to 90 seconds. Short translations keep the existing 15-second timeout.
+
+1.0.72: Keep confirmed Exit closed, return to Kodi Home after Exit dialogs close, and ignore queued reopen requests for three seconds after Exit. Cancel remains available.
+
+1.0.71: Honor the MKGA.TV Auto translate preference for both cloud and BYOK playback paths, keep original subtitles when translation is off, and handle empty embedded-only subtitle results safely.
+
+1.0.70: Restore the proven two-press Back/Exit guard.
+
+1.0.62: Faster Home refresh with cursor-safe infinite catalogs, incremental row patching, and background-only account/library/CW maintenance.
 
 1.0.61: Add stale-while-revalidate Streams SQLite v2 and idle Continue Watching stream prefetch for faster source opening.
 

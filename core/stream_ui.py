@@ -51,14 +51,13 @@ def stream_card(stream):
     source_match = SOURCE_RE.search(corpus)
     source = source_match.group(1).strip() if source_match else ''
 
-    flags = []
+    language_codes = []
     for line in corpus.splitlines():
-        found = FLAG_RE.findall(line)
-        if found:
-            text = ' / '.join(found)
-            if text not in flags:
-                flags.append(text)
-    languages = ' • '.join(flags)
+        for flag in FLAG_RE.findall(line):
+            code = ''.join(chr(ord(ch) - 0x1F1E6 + ord('A')) for ch in flag)
+            if code and code not in language_codes:
+                language_codes.append(code)
+    languages = ' / '.join(language_codes)
 
     tech = []
     def add(value):

@@ -35,3 +35,18 @@ class IncrementalHomeRefreshTests(unittest.TestCase):
   self.assertIn('if old == new: continue',source)
   self.assertIn('if patched is False:',source)
   self.assertIn("self.populate_rows('Home',fresh)",source)
+
+class HomePaginationDeviceIndependenceTests(unittest.TestCase):
+ def test_home_watcher_checks_pagination_without_relying_on_dpad_onaction(self):
+  source=Path(__file__).resolve().parents[1].joinpath('lib/nimbus.py').read_text()
+  watch=source.split('    def _start_progress_watch(self):',1)[1].split('    def refresh_home_async',1)[0]
+  self.assertIn("self.getProperty('page') == 'Home'",watch)
+  self.assertIn('self.maybe_load_more_home()',watch)
+  self.assertIn('xbmc.sleep(250)',watch)
+
+ def test_lazy_load_still_waits_until_selection_is_near_row_end(self):
+  source=Path(__file__).resolve().parents[1].joinpath('lib/nimbus.py').read_text()
+  block=source.split('    def maybe_load_more_home(self):',1)[1].split('    def update_hero',1)[0]
+  self.assertIn("len(rows)-self.getControl(cid).getSelectedPosition()>4",block)
+  self.assertIn('self.home_row_loading.add(cid)',block)
+  self.assertIn('threading.Thread(target=work,daemon=True).start()',block)

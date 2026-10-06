@@ -3,6 +3,7 @@ import xbmc
 import xbmcgui
 from lib.cinemeta import catalog
 from lib.settings import apply_kodi_locale, load_setup, save_setup
+from lib.rpdb import poster_url
 
 LANGUAGES = (
     ('English (US)', 'resource.language.en_us', 'eng'),
@@ -43,7 +44,7 @@ HERO_PLOT = 312
 
 def _listitem(row):
     item = xbmcgui.ListItem(row['name'])
-    art = row.get('poster') or ''
+    art = poster_url(row, row.get('poster') or '')
     item.setArt({'thumb': art, 'poster': art, 'icon': art, 'fanart': row.get('background') or art})
     item.setProperty('stremio.id', row['id'])
     item.setProperty('stremio.type', row['type'])

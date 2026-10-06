@@ -342,15 +342,41 @@ class PremiumTests(unittest.TestCase):
         self.assertIsNone(module.cached_state(store))
 
 
-    def test_stremio_hub_preserves_updated_at_for_background_sync(self):
-        payload = {"linked": True, "plan": "basic", "capabilities": {}, "settings": {"preferredLanguages": ["bs"], "updatedAt": 12345}, "mkgaSettings": {"skipIntro": False, "skipRecap": True, "skipOutro": False, "skipPostCredits": True, "updatedAt": 54321}}
+    def test_stremio_hub_preserves_supporter_remote_settings_for_background_sync(self):
+        payload = {
+            "linked": True, "plan": "basic", "capabilities": {},
+            "remoteSettingsAllowed": True,
+            "settings": {"preferredLanguages": ["bs"], "updatedAt": 12345},
+            "kodiSettings": {"values": {"startup_autostart": True, "ui_theme": "2", "cache_catalog_ttl": "30m"}, "updatedAt": 23456},
+            "mkgaSettings": {"skipIntro": False, "skipRecap": True, "skipOutro": False, "skipPostCredits": True, "rpdbEnabled": True, "rpdbConfigured": True, "rpdbApiKey": "rpdb-test-key", "updatedAt": 54321}
+        }
         module = load_module()
         result = module._bounded_stremio_hub(payload)
+        self.assertTrue(result["remoteSettingsAllowed"])
         self.assertEqual(result["settings"]["updatedAt"], 12345)
+        self.assertEqual(result["kodiSettings"]["updatedAt"], 23456)
+        self.assertTrue(result["kodiSettings"]["values"]["startup_autostart"])
+        self.assertEqual(result["kodiSettings"]["values"]["ui_theme"], "2")
         self.assertFalse(result["mkgaSettings"]["skipIntro"])
         self.assertTrue(result["mkgaSettings"]["skipRecap"])
         self.assertFalse(result["mkgaSettings"]["skipOutro"])
+        self.assertTrue(result["mkgaSettings"]["rpdbEnabled"])
+        self.assertTrue(result["mkgaSettings"]["rpdbConfigured"])
+        self.assertEqual(result["mkgaSettings"]["rpdbApiKey"], "rpdb-test-key")
         self.assertEqual(result["mkgaSettings"]["updatedAt"], 54321)
+
+    def test_free_stremio_hub_does_not_deliver_remote_settings(self):
+        module = load_module()
+        result = module._bounded_stremio_hub({
+            "linked": True, "plan": "basic", "capabilities": {},
+            "remoteSettingsAllowed": False, "settings": None,
+            "kodiSettings": None, "mkgaSettings": None,
+        })
+        self.assertTrue(result["linked"])
+        self.assertFalse(result["remoteSettingsAllowed"])
+        self.assertIsNone(result["settings"])
+        self.assertIsNone(result["kodiSettings"])
+        self.assertIsNone(result["mkgaSettings"])
 
 if __name__ == "__main__":
     unittest.main()

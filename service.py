@@ -138,22 +138,25 @@ class PlaybackWatcher(xbmc.Player):
         progress.update(2, "Checking subtitles from the video…")
         embedded_error = None
         last_fallback_error = None
+        entries = []
         try:
-            # Fastest path: MKGA resolves the user's own Stremio subtitle addons
-            # server-side, translates/caches there, and returns a ready SRT.
-            try:
-                from lib.signin import account_store
-                from lib.vortexo_premium import resolve_subtitle_cloud
-                cloud = resolve_subtitle_cloud(account_store(), context["kind"], context["id"], context.get("filename", ""), target)
-                if cloud and self._matches(digest):
-                    import hashlib as _hashlib
-                    path = PROFILE / "subtitles" / ("mkga-cloud-" + _hashlib.sha256(cloud["subtitle"].encode("utf-8")).hexdigest() + ".srt")
-                    from setup_profile import atomic_write
-                    atomic_write(path, cloud["subtitle"].encode("utf-8"))
-                    if self._apply(str(path), digest, "MKGA Cloud", cloud["source_language"], cloud["target_language"]):
-                        return
-            except Exception as error:
-                _remember_ai_error("MKGA subtitle cloud resolver", error)
+            # Auto translate is authoritative for both cloud and BYOK paths.
+            if settings.get("auto_translate", True):
+                # Fastest path: MKGA resolves the user's own Stremio subtitle addons
+                # server-side, translates/caches there, and returns a ready SRT.
+                try:
+                    from lib.signin import account_store
+                    from lib.vortexo_premium import resolve_subtitle_cloud
+                    cloud = resolve_subtitle_cloud(account_store(), context["kind"], context["id"], context.get("filename", ""), target)
+                    if cloud and self._matches(digest):
+                        import hashlib as _hashlib
+                        path = PROFILE / "subtitles" / ("mkga-cloud-" + _hashlib.sha256(cloud["subtitle"].encode("utf-8")).hexdigest() + ".srt")
+                        from setup_profile import atomic_write
+                        atomic_write(path, cloud["subtitle"].encode("utf-8"))
+                        if self._apply(str(path), digest, "MKGA Cloud", cloud["source_language"], cloud["target_language"]):
+                            return
+                except Exception as error:
+                    _remember_ai_error("MKGA subtitle cloud resolver", error)
 
             # Noiro-style local fallback: ask subtitle addons first. Remote 4K MKV
             # embedded extraction can require reading/seeking the whole stream on
@@ -182,7 +185,7 @@ class PlaybackWatcher(xbmc.Player):
                         # Show the source subtitle immediately, then replace it only
                         # after a complete translated file is ready.
                         self._apply(original, digest, "Stremio addon", source_language, source_language or target)
-                        if source_language == target:
+                        if source_language == target or not settings.get("auto_translate", True):
                             return
                         def fallback_progress(percent, message):
                             update(18 + int(percent * 0.78), message)
@@ -196,7 +199,8 @@ class PlaybackWatcher(xbmc.Player):
                         last_fallback_error = error
                         _remember_ai_error("AI subtitles Stremio translation", error)
 
-            if not self._matches(digest) or settings.get("source") == "2":
+            if (not self._matches(digest) or settings.get("source") == "2"
+                    or not settings.get("auto_translate", True)):
                 return
 
             # Embedded is fallback, not the fast path. This preserves support for
@@ -205,8 +209,16 @@ class PlaybackWatcher(xbmc.Player):
             progress.update(25, "Checking subtitles embedded in the video…")
             try:
                 result = prepare_embedded_auto(current, PROFILE, progress_callback=update)
-                if result and self._apply(result["path"], digest, "video", result["source_language"], result["target_language"]):
-                    return
+                if result:
+                    translation_error = result.get("translation_error")
+                    if translation_error is not None:
+                        _remember_ai_error("AI subtitles embedded translation", translation_error)
+                    if self._apply(result["path"], digest,
+                                   "AI translated video" if result.get("translated") else "video original",
+                                   result["source_language"], result["target_language"]):
+                        if translation_error is not None:
+                            _notify("AI translation unavailable; using the original video subtitle.", 4500)
+                        return
             except Exception as error:
                 embedded_error = error
                 _remember_ai_error("AI subtitles embedded source", error)
@@ -239,7 +251,23 @@ class SubtitleSettingsSync:
 
     def __init__(self):
         self._next_check = 0
-        self._last_updated = None
+        self._last_subtitle_updated = None
+        self._last_kodi_updated = None
+
+    def _apply_kodi_settings(self, remote):
+        if not isinstance(remote, dict):
+            return
+        values = remote.get("values")
+        if not isinstance(values, dict):
+            return
+        for key, value in values.items():
+            try:
+                if isinstance(value, bool):
+                    ADDON.setSetting(str(key), "true" if value else "false")
+                elif isinstance(value, (str, int, float)):
+                    ADDON.setSetting(str(key), str(value))
+            except Exception:
+                continue
 
     def tick(self):
         now = time.monotonic()
@@ -250,19 +278,27 @@ class SubtitleSettingsSync:
             from lib.signin import account_store
             from lib.vortexo_premium import hub_state
             hub = hub_state(account_store(), refresh_remote=True, max_age=0)
-            remote = hub.get("settings") if isinstance(hub, dict) and hub.get("linked") else None
-            if not isinstance(remote, dict):
+            if not isinstance(hub, dict) or not hub.get("linked") or not hub.get("remoteSettingsAllowed"):
                 return
-            updated = int(remote.get("updatedAt") or 0)
-            if self._last_updated == updated:
-                return
-            self._last_updated = updated
-            _apply_remote_style({
-                "remote": True,
-                "subtitle_size": str(remote.get("subtitleSize") or "medium"),
-                "subtitle_position": str(remote.get("subtitlePosition") or "bottom"),
-                "subtitle_color": str(remote.get("subtitleColor") or "white"),
-            })
+
+            remote = hub.get("settings")
+            if isinstance(remote, dict):
+                updated = int(remote.get("updatedAt") or 0)
+                if self._last_subtitle_updated != updated:
+                    self._last_subtitle_updated = updated
+                    _apply_remote_style({
+                        "remote": True,
+                        "subtitle_size": str(remote.get("subtitleSize") or "medium"),
+                        "subtitle_position": str(remote.get("subtitlePosition") or "bottom"),
+                        "subtitle_color": str(remote.get("subtitleColor") or "white"),
+                    })
+
+            kodi_remote = hub.get("kodiSettings")
+            if isinstance(kodi_remote, dict):
+                kodi_updated = int(kodi_remote.get("updatedAt") or 0)
+                if self._last_kodi_updated != kodi_updated:
+                    self._last_kodi_updated = kodi_updated
+                    self._apply_kodi_settings(kodi_remote)
         except Exception:
             return
 
@@ -381,6 +417,10 @@ def main():
     subtitle_sync = SubtitleSettingsSync()
     continue_sync = ContinueIndexSync()
     skip_watcher = SkipSegmentWatcher(PROFILE)
+    from lib.playback_watermark import PlaybackWatermark
+    watermark = PlaybackWatermark(player, ADDON)
+    from lib.update_notice import UpdateNotice
+    update_notice = UpdateNotice(ADDON, PROFILE)
     session = xbmcgui.Window(SESSION_WINDOW_ID)
     session.setProperty(PROGRESS_READY, "true")
     try:
@@ -390,16 +430,20 @@ def main():
         subtitle_sync.tick()
         continue_sync.tick()
         skip_watcher.tick()
+        watermark.tick()
         while not monitor.waitForAbort(1):
             subtitle_sync.tick()
             continue_sync.tick()
             player.tick()
+            watermark.tick()
+            update_notice.tick()
             skip_watcher.tick()
             while flush_pending(player):
                 pass
         while flush_pending(player):
             pass
     finally:
+        watermark.close()
         try:
             skip_watcher.close()
         except Exception:

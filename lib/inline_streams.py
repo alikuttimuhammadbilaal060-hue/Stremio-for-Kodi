@@ -1,10 +1,11 @@
 """Addon-owned hero stream panel; Back restores the original cards and focus."""
 import threading
 import xbmcgui
+from lib.ui_dialogs import dialog as themed_dialog
 from lib import backend as api
-from lib.stream_presenter import presentation, target_label, playback_meta
+from lib.stream_presenter import presentation, target_label, playback_meta, filter_rows, provider_choices
 
-LIST, CLOSE, RETRY = 7100, 7101, 7103
+LIST, CLOSE, RETRY, PROVIDER_FILTER, CODEC_FILTER, HDR_FILTER = 7100, 7101, 7103, 7104, 7105, 7106
 BACK = (10, 92, 216, 247)
 
 
@@ -21,6 +22,10 @@ class InlineStreams:
         self._streams_positions = {}
         self._streams_launching = False
         self._streams_prefetch_identity = None
+        self._streams_provider_filter = 'All'
+        self._streams_codec_filter = 'All'
+        self._streams_dynamic_filter = 'All'
+        self._sync_stream_filter_labels()
 
     def prefetch_streams(self, identity):
         """Media Info trigger: show cached data later, refresh this title once in background."""
@@ -120,7 +125,7 @@ class InlineStreams:
         self.setFocusId(LIST)
 
     def _render_streams(self, restore=False):
-        self._streams_visible = list(self._streams_rows)
+        self._streams_visible = filter_rows(self._streams_rows, self._streams_provider_filter, self._streams_codec_filter, self._streams_dynamic_filter)
         control = self.getControl(LIST)
         control.reset()
         for row in self._streams_visible:
@@ -134,6 +139,32 @@ class InlineStreams:
         self.setProperty('streams_count', '{} sources'.format(len(self._streams_visible)))
         self.setProperty('streams_ready', 'true' if self._streams_visible else '')
         self.setProperty('streams_message', '' if self._streams_visible else 'No playable sources were returned.')
+
+    def _sync_stream_filter_labels(self):
+        self.setProperty('streams_provider_filter', 'Source: '+self._streams_provider_filter)
+        self.setProperty('streams_codec_filter', 'Codec: '+self._streams_codec_filter)
+        self.setProperty('streams_hdr_filter', 'HDR: '+self._streams_dynamic_filter)
+
+    def _pick_stream_filter(self, kind):
+        if kind=='provider':
+            values=provider_choices(self._streams_rows); current=self._streams_provider_filter; heading='Source / provider'
+        elif kind=='codec':
+            values=['All','HEVC / H.265','H.264 / AVC','AV1']; current=self._streams_codec_filter; heading='Video codec'
+        else:
+            values=['All','Dolby Vision','HDR10','HDR']; current=self._streams_dynamic_filter; heading='Dynamic range'
+        selected=themed_dialog().select(heading,values,preselect=(values.index(current) if current in values else 0))
+        if selected<0:return
+        if kind=='provider': self._streams_provider_filter=values[selected]
+        elif kind=='codec': self._streams_codec_filter=values[selected]
+        else: self._streams_dynamic_filter=values[selected]
+        self._sync_stream_filter_labels(); self._render_streams()
+
+    def set_stream_filters(self, provider='All', codec='All', dynamic='All'):
+        self._streams_provider_filter = provider or 'All'
+        self._streams_codec_filter = codec or 'All'
+        self._streams_dynamic_filter = dynamic or 'All'
+        if self._streams_open:
+            self._render_streams()
 
     def _remember_stream_position(self):
         if self._streams_visible:
@@ -158,7 +189,7 @@ class InlineStreams:
             xbmc.executebuiltin('SetFocus({})'.format(self._streams_origin))
 
     def streams_focus(self, cid):
-        if self._streams_open and cid not in (LIST, CLOSE, RETRY):
+        if self._streams_open and cid not in (LIST, CLOSE, RETRY, PROVIDER_FILTER, CODEC_FILTER, HDR_FILTER):
             self.setFocusId(LIST if self.getProperty('streams_ready') else CLOSE)
 
     def streams_action(self, action):
@@ -175,6 +206,12 @@ class InlineStreams:
             self.close_streams()
         elif cid == RETRY and not self.getProperty('streams_loading'):
             self._queue_streams(refresh=True)
+        elif cid == PROVIDER_FILTER:
+            self._pick_stream_filter('provider')
+        elif cid == CODEC_FILTER:
+            self._pick_stream_filter('codec')
+        elif cid == HDR_FILTER:
+            self._pick_stream_filter('hdr')
         elif cid == LIST:
             self._play_selected_stream()
         return True

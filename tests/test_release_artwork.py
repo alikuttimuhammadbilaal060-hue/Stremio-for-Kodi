@@ -36,9 +36,11 @@ class ReleaseArtworkTests(unittest.TestCase):
         for addon in self.feed.getroot():
             identity = addon.get('id')
             if identity == 'service.mkga.connector':
-                connector = self.root / 'feed' / identity / 'service.mkga.connector-0.1.1.zip'
+                connector = self.root / 'feed' / identity / (identity + '-' + addon.get('version') + '.zip')
                 with zipfile.ZipFile(connector) as archive:
-                    self.assertEqual(ET.fromstring(archive.read(identity + '/addon.xml')).get('id'), identity)
+                    manifest = ET.fromstring(archive.read(identity + '/addon.xml'))
+                    self.assertEqual(manifest.get('id'), identity)
+                    self.assertEqual(manifest.get('version'), addon.get('version'))
                 continue
             archive_path = self.package if identity == 'script.stremioelec' else self.repo_zip
             assets = addon.find("extension[@point='xbmc.addon.metadata']/assets")

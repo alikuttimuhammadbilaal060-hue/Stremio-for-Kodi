@@ -1,5 +1,8 @@
 """Stremio account integration. Never log tokens or configured addon URLs."""
 import errno
+from contextlib import contextmanager
+from copy import deepcopy
+import threading
 import hashlib
 import json
 import os
@@ -146,6 +149,16 @@ def pull_addons(token):
     return addons, skipped
 
 
+def pull_user_id(token):
+    """Read only the stable account ID; do not persist profile/email/Trakt data."""
+    result = request('https://api.strem.io/api/getUser', {
+        'type': 'GetUser', 'authKey': token}).get('result')
+    identity = result.get('_id') if isinstance(result, dict) else None
+    if not isinstance(identity, str) or not identity or len(identity) > 160 or identity != identity.strip():
+        raise AccountError('Unable to verify the Stremio account identity.')
+    return identity
+
+
 def pull_library(token):
     result = request('https://api.strem.io/api/datastoreGet', {
         'authKey': token, 'collection': 'libraryItem', 'ids': [], 'all': True}).get('result')
@@ -178,6 +191,61 @@ def library_rows(entries, continuing=False):
                   key=lambda entry: str(entry['state'].get('lastWatched') or entry.get('_mtime') or ''), reverse=True)
 
 
+
+_STORAGE_MUTEX = threading.RLock()
+_ACCOUNT_BOUND_FIELDS = (
+    'library', 'addons', 'verified_identity', 'vortexo_premium_session',
+    'vortexo_premium', 'mkga_stremio_hub', 'mkga_stremio_hub_checked_at',
+)
+
+
+class AccountConflict(AccountError):
+    def __init__(self):
+        super().__init__('Account data changed while saving. Refresh and retry.')
+
+
+class Snapshot(dict):
+    def __init__(self, value):
+        super().__init__(value)
+        self.baseline = deepcopy(value)
+
+
+@contextmanager
+def storage_lock(directory):
+    # Atomic replace alone cannot prevent two writers from losing each other's fields.
+    with _STORAGE_MUTEX:
+        for attempt in range(SAVE_ATTEMPTS):
+            try:
+                directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+                break
+            except OSError as error:
+                if not _retryable_storage_error(error) or attempt + 1 == SAVE_ATTEMPTS:
+                    raise
+                time.sleep(0.05 * (attempt + 1))
+        fd = os.open(directory / '.account.lock', os.O_CREAT | os.O_RDWR | getattr(os, 'O_NOFOLLOW', 0), 0o600)
+        locked = False
+        try:
+            if os.name == 'nt':
+                import msvcrt
+                if not os.fstat(fd).st_size:
+                    os.write(fd, b'0')
+                os.lseek(fd, 0, os.SEEK_SET)
+                msvcrt.locking(fd, msvcrt.LK_LOCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(fd, fcntl.LOCK_EX)
+            locked = True
+            yield
+        finally:
+            if locked:
+                if os.name == 'nt':
+                    os.lseek(fd, 0, os.SEEK_SET)
+                    msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+                else:
+                    fcntl.flock(fd, fcntl.LOCK_UN)
+            os.close(fd)
+
+
 class Store:
     """Owner-only local file, not encrypted. Exclude Kodi addon_data from backups."""
     def __init__(self, directory):
@@ -186,16 +254,57 @@ class Store:
 
     def load(self):
         if not self.path.exists():
-            return {}
+            return Snapshot({})
         try:
             data = json.loads(self.path.read_text())
             if not isinstance(data, dict):
                 raise ValueError()
-            return data
+            return Snapshot(data)
         except Exception:
             raise AccountError('Local account data cannot be read. Disconnect and reconnect.') from None
 
     def save(self, data):
+        try:
+            with storage_lock(self.directory):
+                merged = dict(data)
+                if isinstance(data, Snapshot):
+                    latest = self.load()
+                    missing = object()
+                    changes = [name for name in set(data) | set(data.baseline)
+                               if data.get(name, missing) != data.baseline.get(name, missing)]
+                    if any(name in changes for name in _ACCOUNT_BOUND_FIELDS) and latest.get('token') != data.baseline.get('token'):
+                        raise AccountConflict()
+                    for name in changes:
+                        old, fresh, desired = (value.get(name, missing) for value in (data.baseline, latest, data))
+                        if fresh != old and fresh != desired:
+                            raise AccountConflict()
+                    merged = dict(latest)
+                    for name in changes:
+                        if name in data:
+                            merged[name] = data[name]
+                        else:
+                            merged.pop(name, None)
+                self._save_atomic(merged)
+                if isinstance(data, Snapshot):
+                    data.clear()
+                    data.update(merged)
+                    data.baseline = deepcopy(merged)
+        except OSError as error:
+            raise AccountStorageError('prepare_profile', error) from None
+
+    def update_library(self, token, expected_library, library):
+        """Compare-and-set an account fetch without overwriting concurrent UI edits."""
+        if not isinstance(token, str) or not token.strip():
+            return False
+        with storage_lock(self.directory):
+            latest = self.load()
+            if latest.get('token') != token or latest.get('library', []) != expected_library:
+                return False
+            latest['library'] = library
+            self._save_atomic(latest)
+            return True
+
+    def _save_atomic(self, data):
         # Retry the entire atomic write, including mkdir/mkstemp: a lock may
         # occur before os.replace. Never delete the last known-good state or
         # move credentials to a less protected fallback directory.
@@ -204,7 +313,6 @@ class Store:
             name = None
             stage = 'prepare_profile'
             try:
-                self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
                 stage = 'create_temp'
                 fd, name = tempfile.mkstemp(dir=self.directory, prefix='.account-')
                 chmod = getattr(os, 'fchmod', None)

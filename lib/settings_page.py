@@ -259,7 +259,8 @@ def rows_for(category):
             _bool("error_reporting_auto", "Anonymous error reports", "Automatically send sanitized anonymous crash reports."),
             _action("report_issue", "Report a bug / request a feature", "Send a reviewed bug report or feature request.", "Open"),
             _action("report_last_error", "Report last error", "Review and retry the most recent sanitized error report.", "Open"),
-            _action("send_performance_report", "Send performance report", "Review and send Home timing data only; no Kodi log, account data, URLs or keys.", "Send"),
+            _action("run_low_power_benchmark", "Run low-power benchmark", "Measure cached Home and SQLite paths locally with no network requests. Intended for Raspberry Pi-class devices.", "Run"),
+            _action("send_performance_report", "Send performance report", "Review and send Home/benchmark timing data only; no Kodi log, account data, URLs or keys.", "Send"),
         ]
     return []
 
@@ -395,6 +396,31 @@ def run_action(action, owner=None):
         owner.open_feedback_type()
     elif action == "report_last_error" and owner is not None:
         owner.open_last_error_custom()
+    elif action == "run_low_power_benchmark":
+        try:
+            from lib.low_power_benchmark import run, confirm_couch_pass
+            result = run(PROFILE)
+            lines = []
+            labels = {
+                'benchmark.cached_home': 'Cached Home',
+                'benchmark.snapshot_load': 'Snapshot read',
+                'benchmark.continue_index': 'Continue Watching SQLite',
+                'benchmark.account_load': 'Account state read',
+                'benchmark.stream_cache': 'Stream cache SQLite',
+            }
+            for stage, elapsed in result['metrics'].items():
+                target = result['targets'][stage]
+                mark = 'PASS' if result['checks'][stage] else 'REVIEW'
+                lines.append('{}: {} ms / {} ms · {}'.format(labels[stage], elapsed, target, mark))
+            lines.append('')
+            lines.append('This is a local engineering budget, not a Pi 3 certification by itself.')
+            lines.append('Use Send performance report next so the real hardware result reaches MKGA Lab.')
+            ui = themed_dialog()
+            ui.ok('Low-power benchmark', '\n'.join(lines))
+            if confirm_couch_pass(PROFILE, result, ui):
+                ui.notification('Pi 3 validation', 'Couch test saved. Use Send performance report to submit the evidence.')
+        except Exception:
+            themed_dialog().notification('Low-power benchmark', 'Benchmark could not be completed.')
     elif action == "send_performance_report":
         from lib.perf_report import build_payload
         from lib.error_report import show_report_dialog

@@ -16,18 +16,52 @@ def presentation(row):
     card = raw if isinstance(raw, dict) else stream_card(row)
     quality = line(card.get('quality') or 'AUTO', 24)
     provider = line(card.get('provider') or row.get('provider') or 'Stream', 70)
-    tech = line(card.get('tech'))
-    parts = [quality]
-    parts.extend(p for p in tech.split(' • ') if p in
-                 ('AV1', 'H.265', 'H.264', 'Dolby Vision', 'HDR10', 'HDR'))
+    tech_parts = [line(part, 40) for part in line(card.get('tech')).split(' • ') if line(part, 40)]
+    video_names = {'REMUX','BluRay','WEB-DL','WEBRip','AV1','H.265','H.264','Dolby Vision','HDR10','HDR','10bit'}
+    video = [part for part in tech_parts if part in video_names]
+    audio = [part for part in tech_parts if part not in video_names]
+    title = line(' · '.join(dict.fromkeys([quality] + video + ([provider] if provider else []))), 180)
+    detail_parts = []
+    if audio:
+        detail_parts.append('Audio: ' + ' / '.join(dict.fromkeys(audio)))
+    languages = line(card.get('languages'), 80)
+    if languages:
+        detail_parts.append('Lang: ' + languages)
     if card.get('size'):
-        parts.append(line(card['size'], 24))
-    if provider:
-        parts.append(provider)
-    title = ' · '.join(dict.fromkeys(parts))
-    detail = line(card.get('filename') or row.get('filename') or row.get('detail') or row.get('label'))
-    return {'title': title, 'detail': detail or provider, 'quality': quality}
+        detail_parts.append(line(card['size'], 24))
+    filename = line(card.get('filename') or row.get('filename') or row.get('detail') or row.get('label'))
+    if filename and filename not in detail_parts:
+        detail_parts.append(filename)
+    detail = line(' · '.join(detail_parts), 350)
+    return {'title': title or provider, 'detail': detail or provider, 'quality': quality}
 
+
+def stream_traits(row):
+    view = presentation(row)
+    text = ' '.join((view.get('title',''), view.get('detail',''))).upper()
+    provider = line((row.get('card') or {}).get('provider') or row.get('provider') or 'Stream',70)
+    codecs=[]
+    if 'H.265' in text or 'HEVC' in text: codecs.append('HEVC / H.265')
+    if 'H.264' in text or 'AVC' in text: codecs.append('H.264 / AVC')
+    if 'AV1' in text: codecs.append('AV1')
+    dynamic=[]
+    if 'DOLBY VISION' in text or re.search(r'\bDV\b',text): dynamic.append('Dolby Vision')
+    if 'HDR10' in text: dynamic.append('HDR10')
+    elif re.search(r'\bHDR\b',text): dynamic.append('HDR')
+    return {'provider':provider,'codecs':codecs,'dynamic':dynamic,'quality':view.get('quality','AUTO')}
+
+def provider_choices(rows):
+    return ['All'] + sorted({stream_traits(row)['provider'] for row in rows if stream_traits(row)['provider']})
+
+def filter_rows(rows, provider='All', codec='All', dynamic='All'):
+    out=[]
+    for row in rows:
+        t=stream_traits(row)
+        if provider!='All' and t['provider']!=provider: continue
+        if codec!='All' and codec not in t['codecs']: continue
+        if dynamic!='All' and dynamic not in t['dynamic']: continue
+        out.append(row)
+    return out
 
 def quality_choices(rows):
     values = {presentation(row)['quality'] for row in rows}

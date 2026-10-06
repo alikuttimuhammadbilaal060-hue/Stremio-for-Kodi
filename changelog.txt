@@ -1,3 +1,76 @@
+v1.0.83
+- Add MKGA Supporter remote settings: supported Stremio for Kodi preferences can now sync from MKGA.TV/phone in the background.
+- Keep the complete local/manual settings path available for free users, including personal Gemini BYOK; remote settings are not delivered to free accounts.
+- Keep sensitive local provider keys out of the remote settings payload.
+- Support the MKGA Build Welcome dialog while preserving the existing addon sign-in screen.
+- Publish a verified Stremio account ID with its token and clear previous-account library, remote addons and cached sessions when connecting a different account.
+- Serialize account-state updates and reject stale library updates after account changes or concurrent library edits.
+
+v1.0.80
+- After a passing Raspberry Pi 3 low-power benchmark, ask the tester to explicitly confirm the remote-only couch test.
+- Store only a local boolean couch-pass flag and include it in the reviewed performance report; no raw model, device ID or extra hardware identifiers are added.
+- Reset couch validation whenever the benchmark does not pass or the hardware is not classified as Raspberry Pi 3.
+- MKGA independently re-checks every benchmark target and requires owner review before GitHub issue #47 can close.
+- Add regression coverage for the validation payload and confirmation rules.
+
+v1.0.79
+- Add Settings → Support → Run low-power benchmark for Raspberry Pi-class hardware.
+- Measure five-sample medians for cached Home, Home snapshot reads, Continue Watching SQLite, local account-state reads and stream-cache SQLite without making network requests.
+- Store benchmark timings plus a coarse hardware class (for example Raspberry Pi 3) in the existing reviewed privacy-safe performance report; never send the raw model or device ID.
+- Document a repeatable Raspberry Pi 3 couch/navigation pass and the low-power rules that must remain true.
+- Keep GitHub issue #47 open until an actual Raspberry Pi 3 result is reviewed.
+
+v1.0.78
+- Preserve provider-supplied rich Cast/Crew person metadata, including profile photos and character/job labels, while keeping initials fallback for name-only providers such as Cinemeta.
+- Show stream Audio and Language information explicitly alongside quality, video format, size and provider.
+- Convert flag-emoji language markers to plain two-letter codes so older Kodi fonts do not show missing/strange glyphs.
+- Keep Home sidebar focused and unfocused labels at the same size; focus remains visible through color and the left indicator.
+- Add regression coverage for the remaining UI/UX items in GitHub issue #39.
+
+v1.0.77
+- Keep a successfully extracted embedded subtitle usable when Gemini/MKGA translation is temporarily unavailable.
+- Treat AI translation as optional after embedded extraction instead of turning a provider timeout/quota/model failure into subtitle loss.
+- Preserve the translation failure as a sanitized Support diagnostic while clearly telling the viewer the original video subtitle remains active.
+- Add regression coverage for GitHub issue #40.
+
+v1.0.76
+- Make Home infinite catalog pagination independent of WindowXML D-pad callbacks on Fire TV and other Kodi devices.
+- Poll the active Home row selection while Home is visible and trigger the existing lazy loader when focus reaches the final four cards.
+- Keep the existing 16-item lightweight page size, provider skip cursor, duplicate filtering and background loading behavior unchanged.
+- Add regression coverage proving pagination is checked from the Home watcher as well as normal remote navigation.
+
+v1.0.75
+- Make the Settings left navigation and right settings panel visually distinguish selected state from actual D-pad focus.
+- Keep the inactive column selection dim instead of leaving both columns with the same full active highlight.
+- Show the bright purple focus background, accent marker and bright text only when that column actually owns focus.
+- Preserve existing left/right remote navigation behavior.
+- Add regression coverage for both Settings columns.
+
+v1.0.74
+- Refresh local Continue Watching immediately after a confirmed Stremio playback write-back instead of waiting for the 15-minute maintenance pass.
+- Resolve a completed series episode to its already-aired next episode from the metadata already loaded for playback, so the series stays at the front of Continue Watching.
+- Notify open Home and media-info windows after confirmed playback sync and patch their local UI state without another account network pull.
+- Refresh episode watched badges/resume state immediately after Stop/End while preserving the currently viewed season and episode-list position.
+- Add regression coverage for partial progress, completed-series next-episode pointers, local progress signaling and Home/Info refresh wiring.
+
+v1.0.73
+- Give full-episode BYOK subtitle translations time to finish instead of abandoning each request after 15 seconds.
+- Scale the request timeout by subtitle cue count and text size, up to 90 seconds per request.
+- Keep the existing 15-second timeout for short translations and preserve model fallback and cancellation behavior.
+- Add regression coverage for small, full-episode, text-heavy, and maximum-size subtitle requests.
+
+v1.0.72
+- Keep a confirmed Exit closed instead of returning to the launcher and reopening Stremio.
+- Return to Kodi Home after Exit dialogs close.
+- Ignore queued launch requests for three seconds after confirmed Exit; normal opening works again after that short guard.
+- Preserve Cancel behavior and add Exit/session cleanup regression tests.
+
+v1.0.71
+- Honor MKGA.TV Auto translate: turning it off skips both MKGA Cloud and local BYOK translation during playback.
+- Keep original subtitles available when automatic translation is disabled.
+- Handle an embedded-only subtitle source with no result without an unbound local variable error.
+- Add runtime preference coverage and strengthen isolated startup/Back/Exit lifecycle validation.
+
 v1.0.70
 - Restore the original proven two-press Back/Exit guard from before the September 30 exit-flow change.
 - First Back only focuses Home/sidebar and arms exit; it never opens the Exit dialog.
