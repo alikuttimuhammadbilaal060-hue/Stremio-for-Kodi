@@ -1,4 +1,7 @@
-v1.0.83 (unreleased)
+v1.0.83
+- Add MKGA Supporter remote settings: supported Stremio for Kodi preferences can now sync from MKGA.TV/phone in the background.
+- Keep the complete local/manual settings path available for free users, including personal Gemini BYOK; remote settings are not delivered to free accounts.
+- Keep sensitive local provider keys out of the remote settings payload.
 - Support the MKGA Build Welcome dialog while preserving the existing addon sign-in screen.
 - Publish a verified Stremio account ID with its token and clear previous-account library, remote addons and cached sessions when connecting a different account.
 - Serialize account-state updates and reject stale library updates after account changes or concurrent library edits.

@@ -251,7 +251,23 @@ class SubtitleSettingsSync:
 
     def __init__(self):
         self._next_check = 0
-        self._last_updated = None
+        self._last_subtitle_updated = None
+        self._last_kodi_updated = None
+
+    def _apply_kodi_settings(self, remote):
+        if not isinstance(remote, dict):
+            return
+        values = remote.get("values")
+        if not isinstance(values, dict):
+            return
+        for key, value in values.items():
+            try:
+                if isinstance(value, bool):
+                    ADDON.setSetting(str(key), "true" if value else "false")
+                elif isinstance(value, (str, int, float)):
+                    ADDON.setSetting(str(key), str(value))
+            except Exception:
+                continue
 
     def tick(self):
         now = time.monotonic()
@@ -262,19 +278,27 @@ class SubtitleSettingsSync:
             from lib.signin import account_store
             from lib.vortexo_premium import hub_state
             hub = hub_state(account_store(), refresh_remote=True, max_age=0)
-            remote = hub.get("settings") if isinstance(hub, dict) and hub.get("linked") else None
-            if not isinstance(remote, dict):
+            if not isinstance(hub, dict) or not hub.get("linked") or not hub.get("remoteSettingsAllowed"):
                 return
-            updated = int(remote.get("updatedAt") or 0)
-            if self._last_updated == updated:
-                return
-            self._last_updated = updated
-            _apply_remote_style({
-                "remote": True,
-                "subtitle_size": str(remote.get("subtitleSize") or "medium"),
-                "subtitle_position": str(remote.get("subtitlePosition") or "bottom"),
-                "subtitle_color": str(remote.get("subtitleColor") or "white"),
-            })
+
+            remote = hub.get("settings")
+            if isinstance(remote, dict):
+                updated = int(remote.get("updatedAt") or 0)
+                if self._last_subtitle_updated != updated:
+                    self._last_subtitle_updated = updated
+                    _apply_remote_style({
+                        "remote": True,
+                        "subtitle_size": str(remote.get("subtitleSize") or "medium"),
+                        "subtitle_position": str(remote.get("subtitlePosition") or "bottom"),
+                        "subtitle_color": str(remote.get("subtitleColor") or "white"),
+                    })
+
+            kodi_remote = hub.get("kodiSettings")
+            if isinstance(kodi_remote, dict):
+                kodi_updated = int(kodi_remote.get("updatedAt") or 0)
+                if self._last_kodi_updated != kodi_updated:
+                    self._last_kodi_updated = kodi_updated
+                    self._apply_kodi_settings(kodi_remote)
         except Exception:
             return
 
