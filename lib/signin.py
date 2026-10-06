@@ -101,7 +101,41 @@ class WelcomeWindow(xbmcgui.WindowXML):
                     if token:
                         store = account_store()
                         state = store.load()
+                        previous_token = state.get('token')
+                        previous_identity = state.get('verified_identity')
+                        if state.get('token') != token:
+                            state.pop('verified_identity', None)
                         state['token'] = token
+                        try:
+                            import hashlib
+                            from account import pull_user_id
+                            user_id = pull_user_id(token)
+                            state['verified_identity'] = {
+                                'user_id': user_id,
+                                'token_sha256': hashlib.sha256(token.encode()).hexdigest()}
+                        except Exception:
+                            # Until identity is verified, Build retains token-based
+                            # account isolation. Login itself remains successful.
+                            xbmc.log('Stremio for Kodi: stable account identity unavailable', xbmc.LOGWARNING)
+                        if self.cancel.is_set() or self.refresh.is_set():
+                            return
+                        if previous_token != token:
+                            current_identity = state.get('verified_identity') or {}
+                            same_account = (isinstance(previous_token, str)
+                                and isinstance(previous_identity, dict)
+                                and previous_identity.get('token_sha256') == hashlib.sha256(previous_token.encode()).hexdigest()
+                                and previous_identity.get('user_id') == current_identity.get('user_id')
+                                and bool(current_identity.get('user_id')))
+                            if not same_account:
+                                state['library'] = []
+                                state['addons'] = merge_account(state, [])
+                            # These cached sessions belong to the previous token,
+                            # including when the same account rotates its token.
+                            for key in ('vortexo_premium_session', 'vortexo_premium',
+                                        'mkga_stremio_hub', 'mkga_stremio_hub_checked_at'):
+                                state.pop(key, None)
+                        # Publish the token and its verified identity atomically so
+                        # native sync never sees an intermediate token-only login.
                         store.save(state)
                         self.label(111, 'Connected. Importing your library and add-ons…')
                         try:
@@ -157,9 +191,9 @@ class WelcomeWindow(xbmcgui.WindowXML):
         super().close()
 
 
-def show_signin():
+def show_signin(filename='script-stremio-welcome.xml', source=None):
     from lib.launch_guard import mark_window, unmark_window
-    window = themed_window(WelcomeWindow, 'script-stremio-welcome.xml', get_addon().getAddonInfo('path'), 'Main', '1080i')
+    window = themed_window(WelcomeWindow, filename, source or get_addon().getAddonInfo('path'), 'Main', '1080i')
     try:
         mark_window(window, 'signin')
         window.doModal()

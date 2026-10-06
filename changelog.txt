@@ -1,3 +1,8 @@
+v1.0.83 (unreleased)
+- Support the MKGA Build Welcome dialog while preserving the existing addon sign-in screen.
+- Publish a verified Stremio account ID with its token and clear previous-account library, remote addons and cached sessions when connecting a different account.
+- Serialize account-state updates and reject stale library updates after account changes or concurrent library edits.
+
 v1.0.80
 - After a passing Raspberry Pi 3 low-power benchmark, ask the tester to explicitly confirm the remote-only couch test.
 - Store only a local boolean couch-pass flag and include it in the reviewed performance report; no raw model, device ID or extra hardware identifiers are added.
